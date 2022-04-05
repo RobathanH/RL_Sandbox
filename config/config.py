@@ -63,6 +63,7 @@ class Config:
     # Generally not specified in registered config
     instance_index: int = 0                     # Allows multiple saves and versions of the same config
     global_save_folder: str = "saves"           # Folder to save data for any and all config instances
+    global_example_folder: str = "examples"     # Folder to save examples from most recent training for any and all config instances
 
 
 
@@ -161,3 +162,11 @@ class Config:
                     max_instance = instance
                     
         return max_instance
+    
+    '''
+    Return example folder for this config instance
+    Returns:
+        (str)
+    '''
+    def instance_examplefolder(self) -> str:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", self.global_example_folder, self.name, INSTANCE_FOLDER_PREFIX + str(self.instance_index)))

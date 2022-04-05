@@ -1,9 +1,7 @@
-import json
 import gym
-import os
+import os, shutil
 from typing import Optional, Union, Tuple
 from tqdm import trange
-import numpy as np
 
 from config.config import Config
 from policy.policy import Policy
@@ -120,9 +118,35 @@ class SinglePlayerEnvHandler:
     
     def record_episodes(self, policy: Policy, count: int, train_step: int) -> None:
         record_path = os.path.join(self.config.instance_savefolder(), RECORDING_DIR)
+        step_id = f"step-{train_step}"
         #wrapped_env = gym.wrappers.RecordVideo(self.env, record_path, episode_trigger = lambda x: True, name_prefix = f"step-{train_step}")
-        wrapped_env = gym.wrappers.Monitor(self.env, record_path, video_callable = lambda x: True, uid = f"step-{train_step}", resume = True)
+        wrapped_env = gym.wrappers.Monitor(self.env, record_path, video_callable = lambda x: True, uid = step_id, resume = True)
         
         for i in trange(count, leave = False):
             self.run_episode(policy, wrapped_env)
             
+        wrapped_env.close()
+            
+        # Remove unnecessary folders and fix video names
+        for file in os.scandir(record_path):
+            # All newly created files have this prefix
+            if file.name.startswith("openaigym"):
+                # Remove stats, manifest and metadata jsons
+                if file.name.endswith(".json"):
+                    os.remove(file.path)
+                    
+                # Rename mp4 files
+                if file.name.endswith(".mp4"):
+                    name_parts = file.name.split('.')
+                    name_step_id = name_parts[3]
+                    step_record_it = str(int(name_parts[4][5:])) # Remove "video" prefix and leading 0s from number
+                    new_filename = '.'.join([name_step_id, step_record_it, "mp4"])
+                    os.replace(file.path, os.path.join(record_path, new_filename))
+            
+        # Replace example folder contents with newest recordings
+        os.makedirs(self.config.instance_examplefolder(), exist_ok = True)
+        for file in os.scandir(self.config.instance_examplefolder()):
+            os.remove(file.path)
+        for file in os.scandir(record_path):
+            if file.name.find(step_id) >= 0:
+                shutil.copyfile(file.path, os.path.join(self.config.instance_examplefolder(), file.name))
