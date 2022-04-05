@@ -45,7 +45,7 @@ def get_config(name: str) -> Config:
                 epochs_per_step = 2,
                 episodes_per_step = 5,
                 optimizer = torch.optim.Adam,
-                learning_rate = 2e-4,
+                learning_rate = LogarithmicSchedule(1e-3, 1e-5, 2000),
                 weight_decay = 1e-4
             )
         )
@@ -56,8 +56,10 @@ def get_config(name: str) -> Config:
         from exp_buffer.td_exp_buffer import TDExpBuffer_Config
         from trainer.actor_critic import ActorCritic_Config
         from function_approximator.basic_networks import MLP
+        from util.schedule import LogarithmicSchedule
         
         return Config(
+            name = "lander.a2c.1",
             env_handler = SinglePlayerEnvHandler_Config(
                 name = "LunarLander-v2",
                 action_space = DiscreteActionSpace(
@@ -79,7 +81,7 @@ def get_config(name: str) -> Config:
                 epochs_per_step = 2,
                 episodes_per_step = 5,
                 optimizer = torch.optim.RMSprop,
-                learning_rate = 1e-4,
+                learning_rate = LogarithmicSchedule(1e-3, 1e-5, 2000),
                 weight_decay = 1e-5,
                 soft_target_update_fraction = 1e-2,
                 entropy_loss_constant = 1e-5
@@ -97,10 +99,12 @@ def get_config(name: str) -> Config:
         from trainer.actor_critic import ActorCritic_Config
         from function_approximator.basic_networks import MLP, MultiheadModule
         from function_approximator.activation import Activation
+        from util.schedule import LogarithmicSchedule
         
         return Config(
+            name = "lander_cont.a2c.1",
             env_handler = SinglePlayerEnvHandler_Config(
-                name = "LunarLander-v2",
+                name = "LunarLanderContinuous-v2",
                 action_space = ContinuousActionSpace(
                     shape = (2,),
                     lower_bound = np.array([-1, -1]),
@@ -138,7 +142,7 @@ def get_config(name: str) -> Config:
                 epochs_per_step = 2,
                 episodes_per_step = 5,
                 optimizer = torch.optim.RMSprop,
-                learning_rate = 1e-3,
+                learning_rate = LogarithmicSchedule(1e-3, 1e-5, 2000),
                 weight_decay = 1e-5,
                 soft_target_update_fraction = 1e-2,
                 entropy_loss_constant = 1e-5

@@ -17,7 +17,7 @@ from exp_buffer.exp_buffer import ExpBuffer
 from exp_buffer.td_exp_buffer import TDExpBuffer_Config
 from function_approximator.function_approximator import FunctionApproximator
 from policy.function_policy import Policy, EpsilonGreedyFunctionPolicy
-from util.schedule import Schedule
+from util.schedule import Schedule, Constant, LogarithmicSchedule
 
 from .trainer import Trainer, Trainer_Config
 
@@ -38,7 +38,7 @@ class QLearning_Config(Trainer_Config):
     q_network_architecture: FunctionApproximator
     
     # Epsilon Schedule
-    epsilon_schedule: Schedule
+    epsilon_schedule: Schedule = LogarithmicSchedule(0.5, 0.01, 500)
         
     # Learning Constants
     epochs_per_step: int = 1
@@ -46,7 +46,7 @@ class QLearning_Config(Trainer_Config):
     batch_size: Optional[int] = None
     minibatch_size: int = 32
     optimizer: Type[torch.optim.Optimizer] = torch.optim.SGD
-    learning_rate: float = 1e-3
+    learning_rate: Schedule = Constant(1e-3)
     weight_decay: float = 0
     
     # Q-Learning Constants
@@ -90,7 +90,7 @@ class QLearning(Trainer):
         self.target_q_net.load_state_dict(self.q_net.state_dict())
 
         # Create optimizer
-        self.optimizer = self.trainer_config.optimizer(self.q_net.parameters(), lr = self.trainer_config.learning_rate, weight_decay = self.trainer_config.weight_decay)
+        self.optimizer = self.trainer_config.optimizer(self.q_net.parameters(), lr = self.trainer_config.learning_rate.value(), weight_decay = self.trainer_config.weight_decay)
 
         # State Variables
         self.train_step = 0
@@ -151,6 +151,10 @@ class QLearning(Trainer):
         
         # Keep track of average loss over entire epoch 
         total_loss = 0
+        
+        # Set learning rate for this train step
+        for g in self.optimizer.param_groups:
+            g['lr'] = self.trainer_config.learning_rate.value(self.train_step)
         
         for epoch in trange(self.trainer_config.epochs_per_step, leave = False):
             epoch_loss = 0 # Accumulate total square error over single epoch

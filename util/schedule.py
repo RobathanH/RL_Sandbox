@@ -16,9 +16,25 @@ class Schedule(ABC):
         (float)
     '''
     @abstractmethod
-    def value(self, step: int) -> float:
+    def value(self, step: int = 0) -> float:
         raise NotImplementedError
 
+'''
+Constant schedule
+'''
+@dataclass
+class Constant(Schedule):
+    val: float
+    
+    '''
+    Retrieve the current value of the variable under the schedule.
+    Args:
+        step (int):     Current step index.
+    Returns:
+        (float)
+    '''
+    def value(self, step: int = 0) -> float:
+        return self.val
 
 '''
 Linear schedule from starting value to ending value in a set number of steps
@@ -36,7 +52,7 @@ class LinearSchedule(Schedule):
     Returns:
         (float)
     '''
-    def value(self, step: int) -> float:
+    def value(self, step: int = 0) -> float:
         return self.start + (self.end - self.start) * min(step / self.duration, 1)
 
 
@@ -57,6 +73,6 @@ class LogarithmicSchedule(Schedule):
     Returns:
         (float)
     '''
-    def value(self, step: int) -> float:
+    def value(self, step: int = 0) -> float:
         lin_schedule = LinearSchedule(np.log(self.start), np.log(self.end), np.log(self.duration))
         return np.exp(lin_schedule.value(step))

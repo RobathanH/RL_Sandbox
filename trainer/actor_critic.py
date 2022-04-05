@@ -21,6 +21,8 @@ from env_handler.env_format import DiscreteActionSpace, ContinuousActionSpace
 from exp_buffer.exp_buffer import ExpBuffer
 from exp_buffer.td_exp_buffer import TDExpBuffer_Config
 from exp_buffer.exp_format import *
+from util.schedule import Schedule, Constant
+
 from .trainer import Trainer, Trainer_Config
 
 '''
@@ -49,7 +51,7 @@ class ActorCritic_Config(Trainer_Config):
     batch_size: Optional[int] = None
     minibatch_size: int = 32
     optimizer: Type[torch.optim.Optimizer] = torch.optim.SGD
-    learning_rate: float = 1e-3
+    learning_rate: Schedule = Constant(1e-3)
     weight_decay: float = 0
     
     gradient_norm_clip_threshold: Optional[float] = None
@@ -136,7 +138,7 @@ class ActorCritic(Trainer):
         self.v_target_network.load_state_dict(self.v_network.state_dict())
         
         # Create optimizer
-        self.optimizer = self.trainer_config.optimizer(itertools.chain(self.v_network.parameters(), self.policy_network.parameters()), lr = self.trainer_config.learning_rate, weight_decay = self.trainer_config.weight_decay)
+        self.optimizer = self.trainer_config.optimizer(itertools.chain(self.v_network.parameters(), self.policy_network.parameters()), lr = self.trainer_config.learning_rate.value(), weight_decay = self.trainer_config.weight_decay)
         
         # State Variables
         self.train_step = 0
@@ -197,6 +199,10 @@ class ActorCritic(Trainer):
         # Keep track of average loss over entire epoch
         total_policy_loss = 0
         total_v_loss = 0
+        
+        # Set learning rate for this train step
+        for g in self.optimizer.param_groups:
+            g['lr'] = self.trainer_config.learning_rate.value(self.train_step)
         
         for epoch in trange(self.trainer_config.epochs_per_step, leave = False):
             # Accumulate total square error over single epoch
@@ -372,7 +378,7 @@ class ActorCritic(Trainer):
             
             # V Loss
             v_predicted = self.v_network(s)
-            v_target = r + torch.bitwise_not(done) * self.v_target_network(next_s) * self.config.env_discount_rate**self.config.exp_buffer.td_steps
+            v_target = r + torch.bitwise_not(done) * self.v_target_network(next_s) * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
             mean_v_loss = torch.mean((v_predicted - v_target)**2)
             
             return mean_policy_loss, mean_v_loss
