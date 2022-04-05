@@ -6,9 +6,9 @@ import time
 
 from torch.utils import tensorboard
 
-from config.config_registry import CONFIG_REGISTRY
+from config.config_registry import get_config
 from config.config import Config
-from env_handler.env_handler import EnvHandler
+from env_handler.singleplayer_env_handler import EnvHandler
 from exp_buffer.exp_buffer import ExpBuffer
 from trainer.trainer import Trainer
 
@@ -50,9 +50,7 @@ if __name__ == '__main__':
     '''
 
     # Config
-    if args.name not in CONFIG_REGISTRY:
-        raise ValueError(f"{args.name} not found in config registry.")
-    config: Config = CONFIG_REGISTRY[args.name]
+    config: Config = get_config(args.name)
     
     # Optional config replacement
     if args.replace and config.config_save_exists():
@@ -91,9 +89,9 @@ if __name__ == '__main__':
     '''
     
     # Major Components
-    env_handler: EnvHandler = EnvHandler(config)
-    exp_buffer: ExpBuffer = config.exp_buffer_class(config)
-    trainer: Trainer = config.trainer_class(config)
+    env_handler: EnvHandler = config.env_handler.get_class()(config)
+    exp_buffer: ExpBuffer = config.exp_buffer.get_class()(config)
+    trainer: Trainer = config.trainer.get_class()(config)
     
     # Load component states if instance previously saved
     if config.instance_save_exists():
@@ -117,7 +115,7 @@ if __name__ == '__main__':
         
         for i in trange(args.train_iter):
             # Experience Step
-            trajectories = env_handler.run_episodes(trainer.current_policy(), config.env_episodes_per_step)
+            trajectories = env_handler.run_episodes(trainer.current_policy(), config.trainer.episodes_per_step)
             
             # Log Experience Metrics
             log_writer.add_scalar("total_reward", np.mean([t.total_reward() for t in trajectories]), trainer.current_train_step())

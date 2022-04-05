@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Any
+from typing import Optional, Type
 
 from .exp_format import *
 
@@ -29,7 +29,7 @@ class ExpBuffer(ABC):
     def clear(self) -> None:
         raise NotImplementedError
     
-    def add_trajectories(self, trajs: List[Trajectory]) -> None:
+    def add_trajectories(self, trajs: list[Trajectory]) -> None:
         for traj in trajs:
             self.add_trajectory(traj)
 
@@ -48,7 +48,7 @@ class ExpBuffer(ABC):
         shuffle (bool):             Whether to shuffle the returned experiences.
     '''
     @abstractmethod
-    def get(self, count: Optional[int] = None, shuffle: bool = True) -> List[Any]:
+    def get(self, count: Optional[int] = None, shuffle: bool = True) -> list:
         raise NotImplementedError
     
     '''
@@ -56,4 +56,17 @@ class ExpBuffer(ABC):
     '''
     @abstractmethod
     def size(self) -> int:
+        raise NotImplementedError
+    
+
+
+'''
+ExpBuffer Config
+'''
+class ExpBuffer_Config(ABC):
+    '''
+    Return the ExpBuffer type associated with this config
+    '''
+    @abstractmethod
+    def get_class(self) -> Type[ExpBuffer]:
         raise NotImplementedError

@@ -4,30 +4,17 @@ import os
 import json
 from typing import Tuple, Type, Optional, Union
 import numpy as np
+from env_handler.env_handler import EnvHandler_Config
 
 from env_transform.action_transform import ActionTransform
 from env_transform.observation_transform import ObservationTransform
-from exp_buffer.exp_buffer import ExpBuffer
+from exp_buffer.exp_buffer import ExpBuffer, ExpBuffer_Config
 from trainer.trainer import Trainer, Trainer_Config
 
 '''
-Config class that specifies a particular instance of an RL method on a particular environment.
-Specific instances will override variables and be stored in the config registry.
+Config dataclass that specifies a particular instance of an RL method on a particular environment.
+Contains multiple config dataclasses for specific components
 '''
-
-'''
-Action Space Specifier. Config may specify a DiscreteActionSpace or a ContinuousActionSpace
-'''
-@dataclass
-class DiscreteActionSpace:
-    count: Tuple[int]
-    
-@dataclass
-class ContinuousActionSpace:
-    shape: Tuple[int]
-    lower_bound: Optional[np.ndarray]
-    upper_bound: Optional[np.ndarray]
-    
     
 '''
 JSON Encoder for Config instances
@@ -61,30 +48,14 @@ INSTANCE_FOLDER_PREFIX = "instance_"
 class Config:
     name: str                                   # Unique config identifier
 
-    # Environment Specifier
-    env_name: str                               # Exact AI Gym env string
-    env_action_space: Union[DiscreteActionSpace, ContinuousActionSpace]     # Specifies whether action space is discrete or continuous, plus its shape and bounds
-    env_observation_shape: Tuple[int]           # Shape of observation inputs
+    # Environment Handler
+    env_handler: EnvHandler_Config              # EnvHandler Specifier
     
-    # Environment Transforms
-    env_action_transform: Optional[ActionTransform]             # Optional action format transform operation
-    env_observation_transform: Optional[ObservationTransform]   # Optional observation format transform operation
-
-    # Environment Running Constants
-    env_max_episode_steps: Optional[int]        # Max episode length before termination. If None, no enforced limit
-    env_episodes_per_step: int                  # Number of episodes to collect per step (before each training step)
-    
-    # Env RL Constants
-    env_discount_rate: float                    # Discount rate for future rewards
+    # Experience Buffer
+    exp_buffer: ExpBuffer_Config                # ExpBuffer Specifier
 
     # RL method
-    trainer_class: Type[Trainer]                # (Trainer subclass)
-    trainer_config: Trainer_Config              # (Trainer-specific config dataclass)
-
-    # Exp Buffer
-    exp_buffer_class: Type[ExpBuffer]           # (ExpBuffer subclass)
-    exp_buffer_capacity: int                    # Max number of tuples to store in exp buffer
-    exp_buffer_td_level: Optional[int] = None   # Number of episodes to look ahead for exact rewards before bootstrapping. None indicates MC experience
+    trainer: Trainer_Config                     # Trainer Specifier
     
     
     

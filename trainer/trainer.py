@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
+from typing import Optional, Type
 
 from exp_buffer.exp_format import Trajectory
 from exp_buffer.exp_buffer import ExpBuffer
@@ -72,4 +72,9 @@ class Trainer(ABC):
 Interface class for storing trainer-specific config
 '''
 class Trainer_Config(ABC):
-    pass
+    '''
+    Return Trainer class associated with this config
+    '''
+    @abstractmethod
+    def get_class(self) -> Type[Trainer]:
+        raise NotImplementedError
