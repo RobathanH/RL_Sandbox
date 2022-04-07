@@ -195,7 +195,7 @@ class QLearning(Trainer):
             
         # Return metrics
         train_mse = total_loss / (aligned_batch_size * self.trainer_config.epochs_per_step)
-        return {"value_mse_loss": train_mse}
+        return {"value_loss": train_mse}
 
     
 

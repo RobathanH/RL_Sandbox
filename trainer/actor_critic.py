@@ -10,6 +10,7 @@ from tqdm import trange
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 from config.config import Config
@@ -24,6 +25,7 @@ from exp_buffer.exp_format import *
 from util.schedule import Schedule, Constant
 
 from .trainer import Trainer, Trainer_Config
+from .loss_functions import Huber_Loss, Loss, MSE_Loss
 
 '''
 Default: Advantage Actor-Critic (A2C)
@@ -53,8 +55,10 @@ class ActorCritic_Config(Trainer_Config):
     optimizer: Type[torch.optim.Optimizer] = torch.optim.SGD
     learning_rate: Schedule = Constant(1e-3)
     weight_decay: float = 0
-    
     gradient_norm_clip_threshold: Optional[float] = None
+    
+    # Value loss type
+    value_loss_function: Loss = MSE_Loss()
 
     # TD-Learning Constants
     soft_target_update_fraction: float = 0.01
@@ -92,7 +96,11 @@ class ActorCritic(Trainer):
         if not isinstance(config.exp_buffer, TDExpBuffer_Config):
             raise ValueError(f"ExpBuffer must be TDExpBuffer")
         
-        # Determine ActorCritic subtype
+        # Value Loss validity
+        if not (isinstance(self.trainer_config.value_loss_function, MSE_Loss) or isinstance(self.trainer_config.value_loss_function, Huber_Loss)):
+            raise ValueError(f"Unsupported value loss function: {type(self.trainer_config.value_loss_function)}")
+        
+        # Check actionspace validity
         if isinstance(config.env_handler.action_space, DiscreteActionSpace):
             self.action_type = ActionType.DISCRETE
         elif isinstance(config.env_handler.action_space, ContinuousActionSpace):
@@ -260,7 +268,7 @@ class ActorCritic(Trainer):
         train_v_loss = total_v_loss / (aligned_batch_size * self.trainer_config.epochs_per_step)
         return {
             "policy_loss": train_policy_loss,
-            "value_mse_loss": train_v_loss
+            "value_loss": train_v_loss
         }
         
     '''
@@ -336,25 +344,26 @@ class ActorCritic(Trainer):
             # Exp Tensors
             s = torch.from_numpy(np.array([e.state for e in exp_minibatch])).type(torch.float32).to(DEVICE)
             a_ind = torch.from_numpy(np.array([e.action for e in exp_minibatch])).type(torch.int64)
-            a = nn.functional.one_hot(a_ind, self.config.env_handler.action_space.count).type(torch.bool).to(DEVICE)
+            a = F.one_hot(a_ind, self.config.env_handler.action_space.count).type(torch.bool).to(DEVICE)
             r = torch.from_numpy(np.array([e.reward for e in exp_minibatch])).type(torch.float32).to(DEVICE)
             done = torch.tensor([e.done() for e in exp_minibatch]).type(torch.bool).to(DEVICE)
             next_s = torch.from_numpy(np.array([e.next_state if not e.done() else np.zeros(self.config.env_handler.observation_space).astype(np.float32) for e in exp_minibatch])).type(torch.float32).to(DEVICE)
             
             # Policy Loss
             with torch.no_grad():
-                TDn_val_estimate = r + torch.bitwise_not(done) * self.v_network(next_s) * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
-                TD0_val_estimate = self.v_network(s)
+                TDn_val_estimate = r + torch.bitwise_not(done) * self.v_network(next_s).squeeze() * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
+                TD0_val_estimate = self.v_network(s).squeeze()
                 advantage = TDn_val_estimate - TD0_val_estimate
+
             logits = self.policy_network(s)
             log_prob = self.log_prob_categorical(logits, a)
             entropy = torch.sum(torch.softmax(logits, dim=-1) * torch.log_softmax(logits, dim=-1), dim=-1)
             mean_policy_loss = torch.mean(-log_prob * advantage - self.trainer_config.entropy_loss_constant * entropy)
             
             # V Loss
-            v_predicted = self.v_network(s)
-            v_target = r + torch.bitwise_not(done) * self.v_target_network(next_s) * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
-            mean_v_loss = torch.mean((v_predicted - v_target)**2)
+            v_predicted = self.v_network(s).squeeze()
+            v_target = r + torch.bitwise_not(done) * self.v_target_network(next_s).squeeze() * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
+            mean_v_loss = self.trainer_config.value_loss_function.apply(v_predicted, v_target)
             
             return mean_policy_loss, mean_v_loss
                 
@@ -368,8 +377,8 @@ class ActorCritic(Trainer):
             
             # Policy Loss
             with torch.no_grad():
-                TDn_val_estimate = r + torch.bitwise_not(done) * self.v_network(next_s) * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
-                TD0_val_estimate = self.v_network(s)
+                TDn_val_estimate = r + torch.bitwise_not(done) * self.v_network(next_s).squeeze() * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
+                TD0_val_estimate = self.v_network(s).squeeze()
                 advantage = TDn_val_estimate - TD0_val_estimate
             mean, log_var = self.policy_network(s)
             log_prob = self.log_prob_gaussian(mean, log_var, a)
@@ -377,9 +386,9 @@ class ActorCritic(Trainer):
             mean_policy_loss = torch.mean(-log_prob * advantage - self.trainer_config.entropy_loss_constant * entropy)
             
             # V Loss
-            v_predicted = self.v_network(s)
-            v_target = r + torch.bitwise_not(done) * self.v_target_network(next_s) * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
-            mean_v_loss = torch.mean((v_predicted - v_target)**2)
+            v_predicted = self.v_network(s).squeeze()
+            v_target = r + torch.bitwise_not(done) * self.v_target_network(next_s).squeeze() * self.config.env_handler.discount_rate**self.config.exp_buffer.td_steps
+            mean_v_loss = self.trainer_config.value_loss_function.apply(v_predicted, v_target)
             
             return mean_policy_loss, mean_v_loss
 
