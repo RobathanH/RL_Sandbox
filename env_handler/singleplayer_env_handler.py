@@ -103,6 +103,8 @@ class SinglePlayerEnvHandler:
             if not self.env_handler_config.time_limit_counts_as_terminal_state:
                 # Do not mark trajectory steps as 'done' if episode is ended by a timelimit, otherwise env is not MDP
                 trajectory_done = episode_done and not ("TimeLimit.truncated" in info and info["TimeLimit.truncated"])
+            else:
+                trajectory_done = episode_done or ("TimeLimit.truncated" in info and info["TimeLimit.truncated"])
             
             traj.add_step(action, reward, next_obs, trajectory_done)
             steps_taken += 1
