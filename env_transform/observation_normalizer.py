@@ -20,4 +20,9 @@ class ObservationNormalizer(ObservationTransform):
         return self.internal_lower_bound + (self.internal_upper_bound - self.internal_lower_bound) * (observation - self.env_lower_bound) / (self.env_upper_bound - self.env_lower_bound)
     
     def to_env(self, observation: np.ndarray) -> np.ndarray:
-        return self.env_lower_bound + (self.env_upper_bound - self.env_lower_bound) * (observation - self.internal_lower_bound) / (self.internal_upper_bound - self.internal_lower_bound)
+        return self.env_lower_bound + (self.env_upper_bound - self.env_lower_bound) * (observation - self.internal_lower_bound) / (self.internal_upper_bound - self.internal_lower_bound)    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

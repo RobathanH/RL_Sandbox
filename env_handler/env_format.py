@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 import numpy as np
 
 '''
@@ -11,6 +11,12 @@ class DiscreteActionSpace:
     
 @dataclass
 class ContinuousActionSpace:
-    shape: Tuple[int, ...]
+    shape: list[int]
     lower_bound: Optional[np.ndarray]
     upper_bound: Optional[np.ndarray]
+    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

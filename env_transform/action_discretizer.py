@@ -10,7 +10,7 @@ Discretize continuous actions into discrete categories
 
 @dataclass
 class ActionDiscretizer(ActionTransform):
-    action_shape: Tuple[int]            # Shape of env-format actions, and thus also the shape of the other variables
+    action_shape: list[int]            # Shape of env-format actions, and thus also the shape of the other variables
     disc_counts: np.ndarray             # Number of bins to discretize each action element into
     cont_lower_bound: np.ndarray        # Minimum value for each action element
     cont_upper_bound: np.ndarray        # Maximum value for each action element
@@ -26,4 +26,9 @@ class ActionDiscretizer(ActionTransform):
         cont_bin_size = (self.cont_upper_bound - self.cont_lower_bound) / self.disc_counts
         rescaled_action = self.cont_lower_bound + action * cont_bin_size
         bin_centered_action = rescaled_action + 0.5 * cont_bin_size
-        return bin_centered_action
+        return bin_centered_action    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

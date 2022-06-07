@@ -28,4 +28,9 @@ class ActionTransform(ABC):
     '''
     @abstractmethod
     def to_env(self, action: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
+        raise NotImplementedError    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

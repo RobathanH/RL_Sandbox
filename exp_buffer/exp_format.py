@@ -96,4 +96,9 @@ class ExpTD:
     next_state: Optional[Any] = None
     
     def done(self) -> bool:
-        return self.next_state is None
+        return self.next_state is None    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

@@ -40,4 +40,9 @@ class DoubleQLearning(QLearning):
             q_target = r + self.config.env_handler.discount_rate * torch.bitwise_not(done) * torch.sum(self.target_q_net(next_s) * best_next_action_onehot, dim = -1)
         
         minibatch_mean_loss = torch.mean((q_predicted - q_target)**2)
-        return minibatch_mean_loss
+        return minibatch_mean_loss    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

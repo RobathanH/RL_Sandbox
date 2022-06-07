@@ -14,4 +14,9 @@ class ByteUnpacker(ObservationTransform):
     
     # TODO
     def to_env(self, observation: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
+        raise NotImplementedError    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

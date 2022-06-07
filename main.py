@@ -3,11 +3,13 @@ import os, shutil
 from tqdm import trange
 import numpy as np
 import time
+import json
 
 from torch.utils import tensorboard
 
 from config.config_registry import get_config
 from config.config import Config
+from config.config_io import load_config, save_config
 from env_handler.singleplayer_env_handler import EnvHandler
 from exp_buffer.exp_buffer import ExpBuffer
 from trainer.trainer import Trainer
@@ -27,19 +29,28 @@ if __name__ == '__main__':
     '''
     Command-line Arguments
     '''
-    argparser = argparse.ArgumentParser(description = "Run a particular RL method and environment")
+    argparser = argparse.ArgumentParser(description = "Run a particular RL method and environment. By default creates a new instance of the given config name (with optional overrides), but can also load existing saves for further training.")
+    
+    # Specify Config Base (required)
     argparser.add_argument("name", type=str, help="Config name to look up and use")
     
-    # Instance targeting - new, load are mutually exclusive
-    argparser.add_argument("-n", "--new", action="store_true", help="Train new instance from scratch. Otherwise loads from specified or highest-index saved instance.")
-    argparser.add_argument("-l", "--load", type=int, default=None, help="Load from particular instance index. By default load from highest-index saved instance.")
+    # Specify Action (required)
+    argparser.add_argument("action", choices=['new', 'load'], help="Action to perform with chosen base config.\n\
+        'new' creates a new instance for this config (with optional overrides), then trains.\n\
+        'load' loads saves from existing instance for this config, then trains.")
     
-    # Config folder editing
-    argparser.add_argument("--replace", action="store_true", help="Replace any existing configs by this name, but attempt to load any corresponding save data.")
-    argparser.add_argument("--restart", action="store_true", help="Remove all existing save data for the chosen config and recreate from scratch.")
- 
+    # Specify instance index
+    argparser.add_argument("-i", "--instance", type=int, default=None, help="Instance to target. Required for 'load' action, allows overriding existing instances for 'new' action.")
+    
     # Training Options
     argparser.add_argument("-t", "--train_iter", type=int, default=1, help="Number of experimentation-training loops to perform.")
+    
+    # Config Overrides
+    argparser.add_argument(
+        "-o", "--overrides", type=json.loads, default={},
+        help=   "Allows overriding parts of base config, valid only for 'new' action.\
+                Overrides are dictionary strings with period-separated double-quoted strings referencing the particular nested config field to be changed.\
+                Ex: python main.py <base_config_name> new --overrides \"{\\\"trainer.weight_decay\\\": 1e-2}\"")
     
     args = argparser.parse_args()
     
@@ -48,39 +59,48 @@ if __name__ == '__main__':
     '''
     Config Setup
     '''
-
-    # Config
-    config: Config = get_config(args.name)
     
-    # Optional config replacement
-    if args.replace and config.config_save_exists():
-        config.save_consistency_file()
-    
-    # Optional config reset
-    if args.restart and config.config_save_exists():
-        shutil.rmtree(config.config_savefolder())
-    
-    # If no save for this config exists, create new config folder and consistency file
-    if not config.config_save_exists():
-        config.save_consistency_file()
-    # If config saves exist, confirm config consistency
+    # Create new instance
+    if args.action == "new":
+        name = args.name
+        if args.instance is not None:
+            instance = args.instance
+        else:
+            max_saved_instance = Config.max_saved_instance(name)
+            if max_saved_instance is not None:
+                instance = max_saved_instance + 1
+            else:
+                instance = 0
+        
+        # Load base config
+        config = get_config(name)
+        
+        # Convert to new instance (change instance index and apply optional overrides)
+        config.to_new_instance(instance, args.overrides)
+        
+        # TODO: Clear any existing files for this instance
+        
+        # Save config file (for future loading)
+        save_config(config)
+        
+    # Load existing instance
+    elif args.action == "load":
+        name = args.name
+        instance = args.instance
+        
+        # Error if instance not specified
+        if instance is None:
+            raise ValueError(f"'load' action requires specified instance.")
+        
+        # Error if instance does not exist
+        if not Config.instance_save_exists(name, instance):
+            raise ValueError(f"No config instance exists with name = {name}, instance = {instance}")
+        
+        config = load_config(name, instance)
+        
+    # Unrecognized action
     else:
-        if not config.check_consistency():
-            raise ValueError(f"Registered config does not match saved config for name: {args.name}.")
-    
-    # Determine Instance Index
-    if args.new:
-        max_saved_instance = config.max_saved_instance()
-        if max_saved_instance is not None:
-            config.instance_index = max_saved_instance + 1
-    elif args.load is not None:
-        config.instance_index = args.load
-        if not config.instance_save_exists():
-            raise ValueError(f"Specified instance {args.load} for config {args.name} does not exist and cannot be loaded.")
-    else:
-        max_saved_instance = config.max_saved_instance()
-        if max_saved_instance is not None:
-            config.instance_index = max_saved_instance
+        raise ValueError(f"Unrecognized action {args.action}")
     
     
     
@@ -93,14 +113,13 @@ if __name__ == '__main__':
     exp_buffer: ExpBuffer = config.exp_buffer.get_class()(config)
     trainer: Trainer = config.trainer.get_class()(config)
     
-    # Load component states if instance previously saved
-    if config.instance_save_exists():
-        if not trainer.on_policy():
-            exp_buffer.load()
-        trainer.load()
+    # Load component states if they exist
+    if not trainer.on_policy():
+        exp_buffer.load()
+    trainer.load()
     
     # Log Writer
-    log_dir_path = os.path.join(config.instance_savefolder(), LOG_DIR_NAME)
+    log_dir_path = os.path.join(Config.instance_save_folder(config.name, config.instance), LOG_DIR_NAME)
     log_writer = tensorboard.SummaryWriter(log_dir = log_dir_path)
     
     

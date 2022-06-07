@@ -11,18 +11,18 @@ Passes a single input to multipe modules,
 return outputs in a tuple
 '''
 class ModuleTuple(nn.Module):
-    def __init__(self, modules: Tuple[nn.Module, ...]) -> None:
+    def __init__(self, modules: list[nn.Module]) -> None:
         super(ModuleTuple, self).__init__()
         self.module_list = nn.ModuleList(modules)
 
     def forward(self, x):
-        return tuple(module(x) for module in self.module_list)
+        return [module(x) for module in self.module_list]
 
 '''
 Module which ignores input and returns value of trainable parameters
 '''
 class ParameterModule(nn.Module):
-    def __init__(self, shape: Tuple[int, ...]) -> None:
+    def __init__(self, shape: list[int]) -> None:
         super(ParameterModule, self).__init__()
         self.param = nn.Parameter(torch.zeros(shape), requires_grad = True)
         
@@ -39,4 +39,9 @@ class BoundedModule(nn.Module):
         self.register_buffer("upper", upper)
         
     def forward(self, x):
-        return self.lower + torch.sigmoid(x) * (self.upper - self.lower)
+        return self.lower + torch.sigmoid(x) * (self.upper - self.lower)    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

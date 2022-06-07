@@ -16,3 +16,8 @@ class EnvHandler_Config(ABC):
     def get_class(self) -> Type[EnvHandler]:
         raise NotImplementedError
     
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

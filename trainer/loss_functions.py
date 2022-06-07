@@ -23,4 +23,9 @@ class MSE_Loss(Loss):
 @dataclass
 class Huber_Loss(Loss):
     def apply(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return F.huber_loss(input, target)
+        return F.huber_loss(input, target)    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

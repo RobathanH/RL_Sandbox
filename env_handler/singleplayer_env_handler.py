@@ -28,7 +28,7 @@ class SinglePlayerEnvHandler_Config(EnvHandler_Config):
     
     # Environment input/output shape (after any transforms)
     action_space: Union[DiscreteActionSpace, ContinuousActionSpace]
-    observation_space: Tuple[int, ...]
+    observation_space: list[int]
     
     # Environment RL Constants
     discount_rate: float = 0.99
@@ -119,7 +119,7 @@ class SinglePlayerEnvHandler:
         return trajectories
     
     def record_episodes(self, policy: Policy, count: int, train_step: int) -> None:
-        record_path = os.path.join(self.config.instance_savefolder(), RECORDING_DIR)
+        record_path = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), RECORDING_DIR)
         step_id = f"step-{train_step}"
         #wrapped_env = gym.wrappers.RecordVideo(self.env, record_path, episode_trigger = lambda x: True, name_prefix = f"step-{train_step}")
         wrapped_env = gym.wrappers.Monitor(self.env, record_path, video_callable = lambda x: True, uid = step_id, resume = True)
@@ -146,9 +146,16 @@ class SinglePlayerEnvHandler:
                     os.replace(file.path, os.path.join(record_path, new_filename))
             
         # Replace example folder contents with newest recordings
-        os.makedirs(self.config.instance_examplefolder(), exist_ok = True)
-        for file in os.scandir(self.config.instance_examplefolder()):
+        os.makedirs(Config.instance_example_folder(self.config.name, self.config.instance), exist_ok = True)
+        for file in os.scandir(Config.instance_example_folder(self.config.name, self.config.instance)):
             os.remove(file.path)
         for file in os.scandir(record_path):
             if file.name.find(step_id) >= 0:
-                shutil.copyfile(file.path, os.path.join(self.config.instance_examplefolder(), file.name))
+                shutil.copyfile(file.path, os.path.join(Config.instance_example_folder(self.config.name, self.config.instance), file.name))
+                
+    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

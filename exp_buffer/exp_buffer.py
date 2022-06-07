@@ -69,4 +69,9 @@ class ExpBuffer_Config(ABC):
     '''
     @abstractmethod
     def get_class(self) -> Type[ExpBuffer]:
-        raise NotImplementedError
+        raise NotImplementedError    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

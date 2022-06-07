@@ -203,11 +203,11 @@ class QLearning(Trainer):
 
     def save(self) -> None:
         # Create dirs if needed
-        os.makedirs(self.config.instance_savefolder(), exist_ok = True)
+        os.makedirs(Config.instance_save_folder(self.config.name, self.config.instance), exist_ok = True)
         
-        network_savepath = os.path.join(self.config.instance_savefolder(), Q_LEARNING_NETWORK_SAVENAME)
-        target_network_savepath = os.path.join(self.config.instance_savefolder(), Q_LEARNING_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(self.config.instance_savefolder(), Q_LEARNING_STATE_SAVENAME)
+        network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), Q_LEARNING_NETWORK_SAVENAME)
+        target_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), Q_LEARNING_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), Q_LEARNING_STATE_SAVENAME)
         
         # Save network weights
         torch.save(self.q_net.state_dict(), network_savepath)
@@ -222,7 +222,7 @@ class QLearning(Trainer):
 
     def load(self, folder: Optional[str] = None) -> None:
         if folder is None:
-            folder = self.config.instance_savefolder()
+            folder = Config.instance_save_folder(self.config.name, self.config.instance)
         network_savepath = os.path.join(folder, Q_LEARNING_NETWORK_SAVENAME)
         target_network_savepath = os.path.join(folder, Q_LEARNING_TARGET_NETWORK_SAVENAME)
         state_savepath = os.path.join(folder, Q_LEARNING_STATE_SAVENAME)
@@ -260,4 +260,9 @@ class QLearning(Trainer):
         q_target = r + self.config.env_handler.discount_rate * torch.bitwise_not(done) * torch.max(self.target_q_net(next_s), dim = -1).values
         minibatch_mean_loss = torch.mean((q_predicted - q_target)**2)
         return minibatch_mean_loss
+        
     
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

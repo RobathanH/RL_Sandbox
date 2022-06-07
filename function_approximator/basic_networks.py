@@ -13,7 +13,7 @@ Simple trainable parameter, ignoring input
 '''
 @dataclass
 class Parameter(FunctionApproximator):
-    shape: Tuple[int, ...]
+    shape: list[int]
     
     '''
     Creates an instance of the module specified by a particular initialized
@@ -24,11 +24,11 @@ class Parameter(FunctionApproximator):
     def create(self) -> nn.Module:
         return ParameterModule(self.shape)
     
-    def input_shape(self) -> Tuple[Tuple[int, ...], ...]:
+    def input_shape(self) -> list[list[int]]:
         return None
     
-    def output_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return (self.shape,)
+    def output_shape(self) -> list[list[int]]:
+        return [self.shape]
 
 '''
 Simple linear transform
@@ -47,11 +47,11 @@ class Linear(FunctionApproximator):
     def create(self) -> nn.Module:
         return nn.Linear(self.input_len, self.output_len)
     
-    def input_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return ((self.input_len,),)
+    def input_shape(self) -> list[list[int]]:
+        return [[self.input_len]]
     
-    def output_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return ((self.output_len,),)
+    def output_shape(self) -> list[list[int]]:
+        return [[self.output_len]]
     
     
     
@@ -63,7 +63,7 @@ class MLP(FunctionApproximator):
     layer_sizes: List[int]
     activation: Activation = Activation.RELU
     final_layer_activation: bool = False
-    bounded_output: Optional[Tuple[float, float]] = None
+    bounded_output: Optional[list[float]] = None # Optional length-2 list specifying min, max output values respectively
     
     '''
     Creates an instance of the module specified by a particular initialized
@@ -83,11 +83,11 @@ class MLP(FunctionApproximator):
                 
         return nn.Sequential(*layers)
     
-    def input_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return ((self.layer_sizes[0],),)
+    def input_shape(self) -> list[list[int]]:
+        return [[self.layer_sizes[0]]]
     
-    def output_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return ((self.layer_sizes[-1],),)
+    def output_shape(self) -> list[list[int]]:
+        return [[self.layer_sizes[-1]]]
     
     
 
@@ -97,7 +97,7 @@ Multi-headed network
 @dataclass
 class MultiheadModule(FunctionApproximator):
     shared_module: FunctionApproximator
-    head_modules: Tuple[FunctionApproximator, ...]
+    head_modules: list[FunctionApproximator]
     
     def __post_init__(self):
         for m in self.head_modules:
@@ -113,14 +113,14 @@ class MultiheadModule(FunctionApproximator):
     def create(self) -> nn.Module:
         return nn.Sequential(
             self.shared_module.create(),
-            ModuleTuple(tuple(m.create() for m in self.head_modules))
+            ModuleTuple([m.create() for m in self.head_modules])
         )
         
-    def input_shape(self) -> Tuple[Tuple[int, ...], ...]:
+    def input_shape(self) -> list[list[int]]:
         return self.shared_module.input_shape()
     
-    def output_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return tuple(m.output_shape()[0] for m in self.head_modules)
+    def output_shape(self) -> list[list[int]]:
+        return [m.output_shape()[0] for m in self.head_modules]
     
 '''
 Sequential Networks
@@ -134,8 +134,13 @@ class SequentialModule(FunctionApproximator):
             module.create() for module in self.modules
         )
         
-    def input_shape(self) -> Tuple[Tuple[int, ...], ...]:
+    def input_shape(self) -> list[list[int]]:
         return self.modules[0].input_shape()
     
-    def output_shape(self) -> Tuple[Tuple[int, ...], ...]:
-        return self.modules[-1].output_shape()
+    def output_shape(self) -> list[list[int]]:
+        return self.modules[-1].output_shape()    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

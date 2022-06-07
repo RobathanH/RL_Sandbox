@@ -8,4 +8,9 @@ TODO: Clearly differentiate between discrete and continuous policies
 class Policy(ABC):
     @abstractmethod
     def get_action(self, observation: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
+        raise NotImplementedError    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

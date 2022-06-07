@@ -21,4 +21,9 @@ class Activation(Enum):
             return nn.Sigmoid()
         
         if self is Activation.TANH:
-            return nn.Tanh()
+            return nn.Tanh()    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

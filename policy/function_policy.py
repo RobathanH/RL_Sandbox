@@ -36,4 +36,9 @@ class EpsilonGreedyFunctionPolicy(FunctionPolicy):
         if np.random.uniform() < self.epsilon:
             return self.random_action_sampler()
         else:
-            return super().get_action(observation)
+            return super().get_action(observation)    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

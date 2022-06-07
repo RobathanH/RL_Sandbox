@@ -2,46 +2,24 @@ from dataclasses import dataclass, is_dataclass
 from enum import Enum
 import os
 import json
-from typing import Tuple, Type, Optional, Union
+from typing import Any, Optional
 import numpy as np
-from env_handler.env_handler import EnvHandler_Config
 
-from env_transform.action_transform import ActionTransform
-from env_transform.observation_transform import ObservationTransform
-from exp_buffer.exp_buffer import ExpBuffer, ExpBuffer_Config
-from trainer.trainer import Trainer, Trainer_Config
+from env_handler.env_handler import EnvHandler_Config
+from exp_buffer.exp_buffer import ExpBuffer_Config
+from trainer.trainer import Trainer_Config
 
 '''
 Config dataclass that specifies a particular instance of an RL method on a particular environment.
 Contains multiple config dataclasses for specific components
 '''
-    
-'''
-JSON Encoder for Config instances
-'''
-class ConfigEncoder(json.JSONEncoder):
-    def default(self, obj):
-        # Encode Class Types by their names alone
-        if isinstance(obj, type):
-            return obj.__name__
-        
-        # Encode enums by their value name
-        if isinstance(obj, Enum):
-            return obj.name
-        
-        # Encode numpy arrays as nested lists
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        
-        # Encode dataclasses by their dictionary formats
-        if is_dataclass(obj):
-            return [type(obj).__name__, obj.__dict__]
-        
-        return json.JSONEncoder.default(self, obj)
         
     
     
 
+# Save Info (model data, etc saved in 'global_save_folder/name/instance/...')
+GLOBAL_SAVE_FOLDER = "saves" # Folder to save data for any and all config instances
+GLOBAL_EXAMPLE_FOLDER = "examples" # Folder to save examples from most recent training for any and all config instances
 CONFIG_SAVENAME = "config.json"
 INSTANCE_FOLDER_PREFIX = "instance_"
 @dataclass
@@ -59,114 +37,78 @@ class Config:
     
     
     
-    # Save Info (model data, etc saved in 'global_save_folder/name/instance/...')
-    # Generally not specified in registered config
-    instance_index: int = 0                     # Allows multiple saves and versions of the same config
-    global_save_folder: str = "saves"           # Folder to save data for any and all config instances
-    global_example_folder: str = "examples"     # Folder to save examples from most recent training for any and all config instances
+    instance: int = 0                           # Allows multiple saves and versions of the same base config
 
 
 
-    # General Save Folder for Config. Contains consistency file and instance saves separately
-
     '''
-    Folder path for this specific configuration
-    Returns:
-        (str)
+    Turn this base config into a new instance, with optional value overrides
+    Args:
+        instance (int):                 Instance index for new instance
+        overrides (dict[str, Any]):     Values to override. Fields must be period-separated string of nested fields
+                                        Ex: {"exp_buffer.capacity": 10000}
     '''
-    def config_savefolder(self) -> str:
-        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", self.global_save_folder, self.name))
-    
-    
-    
-    # Config Consistency File. Store json of config to ensure valid loads/saves
-    
-    '''
-    Returns the full path for the config json file.
-    Config json file is saved in general config-specific folder, separate from specific instances
-    '''
-    def consistency_filepath(self) -> str:
-        return os.path.join(self.config_savefolder(), CONFIG_SAVENAME)
-    
-    '''
-    Checks if this config has been saved before
-    Returns:
-        (bool)
-    '''
-    def config_save_exists(self) -> bool:
-        return os.path.exists(self.consistency_filepath())
-    
-    '''
-    Returns the JSON encoded string for this Config object
-    '''
-    def consistency_string(self) -> str:
-        return json.dumps(self, indent = 4, cls = ConfigEncoder)
-
-    '''
-    Save the config as a json file inside its name-specific savefolder.
-    Used to ensure config consistency between saves of the same name.
-    '''
-    def save_consistency_file(self) -> None:
-        # Make config dir if needed
-        os.makedirs(self.config_savefolder(), exist_ok = True)
-        
-        with open(self.consistency_filepath(), 'w') as fp:
-            fp.write(self.consistency_string())
-
-    '''
-    Checks config consistency against an existing saved config file for
-    this config name.
-    '''
-    def check_consistency(self) -> bool:
-        if self.config_save_exists():
-            with open(self.consistency_filepath(), 'r') as fp:
-                saved_config_str = fp.read()
-            current_config_str = self.consistency_string()
+    def to_new_instance(self, instance: int, overrides: dict[str, Any] = {}) -> None:
+        self.instance = instance
             
-            if saved_config_str == current_config_str:
-                return True
+        for key, val in overrides.items():
+            obj = self
+            fields = key.split('.')
+            for field in fields[:-1]:
+                obj = getattr(obj, field)
+            setattr(obj, fields[-1], val)
+    
 
-        return False
-    
-    
-    
-    # Instance Saves. Store saves of particular instances of this config in separate named folders.
-    
-    '''
-    Folder path for this specific instance of this configuration
-    Returns:
-        (str)
-    '''
-    def instance_savefolder(self) -> str:
-        return os.path.join(self.config_savefolder(), INSTANCE_FOLDER_PREFIX + str(self.instance_index))
-    
-    '''
-    Checks if saves exist for this instance of this config
-    Returns:
-        (bool)
-    '''
-    def instance_save_exists(self) -> bool:
-        return os.path.exists(self.instance_savefolder())
 
-    '''
-    Returns index of maximum saved instance for this config.
-    Returns:
-        (int | None):   Instance index or None if no instances saved
-    '''
-    def max_saved_instance(self) -> Optional[int]:
+
+    # Static Config JSON Save/Load Functions
+    
+    @staticmethod
+    def global_save_folder() -> str:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", GLOBAL_SAVE_FOLDER))
+    
+    @staticmethod
+    def config_save_folder(config_name: str) -> str:
+        return os.path.join(Config.global_save_folder(), config_name)
+    
+    @staticmethod
+    def instance_save_folder(config_name: str, config_instance: int) -> str:
+        return os.path.join(Config.config_save_folder(config_name), f"{INSTANCE_FOLDER_PREFIX}{config_instance}")
+    
+    @staticmethod
+    def instance_save_path(config_name: int, config_instance: int) -> str:
+        return os.path.join(Config.instance_save_folder(config_name, config_instance), CONFIG_SAVENAME)
+    
+    @staticmethod
+    def instance_save_exists(config_name: str, config_instance: int) -> str:
+        return os.path.exists(Config.instance_save_path(config_name, config_instance))
+    
+    @staticmethod
+    def max_saved_instance(config_name: str) -> Optional[int]:
         max_instance = None
-        for name in os.listdir(self.config_savefolder()):
-            if name.startswith(INSTANCE_FOLDER_PREFIX):
-                instance = int(name[len(INSTANCE_FOLDER_PREFIX):])
-                if max_instance is None or instance > max_instance:
-                    max_instance = instance
-                    
+        if os.path.exists(Config.config_save_folder(config_name)):
+            for name in os.listdir(Config.config_save_folder(config_name)):
+                if name.startswith(INSTANCE_FOLDER_PREFIX):
+                    instance = int(name[len(INSTANCE_FOLDER_PREFIX):])
+                    if max_instance is None or instance > max_instance:
+                        max_instance = instance
         return max_instance
     
-    '''
-    Return example folder for this config instance
-    Returns:
-        (str)
-    '''
-    def instance_examplefolder(self) -> str:
-        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", self.global_example_folder, self.name, INSTANCE_FOLDER_PREFIX + str(self.instance_index)))
+    
+    @staticmethod
+    def global_example_folder() -> str:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", GLOBAL_EXAMPLE_FOLDER))
+    
+    @staticmethod
+    def config_example_folder(config_name: str) -> str:
+        return os.path.join(Config.global_example_folder(), config_name)
+    
+    @staticmethod
+    def instance_example_folder(config_name: str, config_instance: int) -> str:
+        return os.path.join(Config.config_example_folder(config_name), f"{INSTANCE_FOLDER_PREFIX}{config_instance}")
+    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

@@ -75,4 +75,9 @@ class LogarithmicSchedule(Schedule):
     '''
     def value(self, step: int = 0) -> float:
         lin_schedule = LinearSchedule(np.log(self.start), np.log(self.end), np.log(self.duration))
-        return np.exp(lin_schedule.value(step))
+        return np.exp(lin_schedule.value(step))    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

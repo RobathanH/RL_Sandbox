@@ -22,7 +22,7 @@ class FunctionApproximator(ABC):
     Outer tuple allows multiple input modalities.
     '''
     @abstractmethod
-    def input_shape(self) -> Tuple[Tuple[int]]:
+    def input_shape(self) -> list[list[int]]:
         raise NotImplementedError
     
     '''
@@ -30,5 +30,10 @@ class FunctionApproximator(ABC):
     Outer tuple allows multiple output modalities.
     '''
     @abstractmethod
-    def output_shape(self) -> Tuple[Tuple[int]]:
-        raise NotImplementedError
+    def output_shape(self) -> list[list[int]]:
+        raise NotImplementedError    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)

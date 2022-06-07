@@ -113,15 +113,15 @@ class ActorCritic(Trainer):
         p_net_arch = self.trainer_config.policy_network_architecture
         v_net_arch = self.trainer_config.v_network_architecture
         if self.action_type is ActionType.DISCRETE:
-            p_net_expected_input = (config.env_handler.observation_space,)
-            p_net_expected_output = ((config.env_handler.action_space.count,),)
-            v_net_expected_input = (config.env_handler.observation_space,)
-            v_net_expected_output = ((1,),)
+            p_net_expected_input = [config.env_handler.observation_space]
+            p_net_expected_output = [[config.env_handler.action_space.count]]
+            v_net_expected_input = [config.env_handler.observation_space]
+            v_net_expected_output = [[1]]
         elif self.action_type is ActionType.CONTINUOUS:
-            p_net_expected_input = (config.env_handler.observation_space,)
-            p_net_expected_output = (config.env_handler.action_space.shape, config.env_handler.action_space.shape) # mean and log-variance
-            v_net_expected_input = (config.env_handler.observation_space,)
-            v_net_expected_output = ((1,),)
+            p_net_expected_input = [config.env_handler.observation_space]
+            p_net_expected_output = [config.env_handler.action_space.shape, config.env_handler.action_space.shape] # mean and log-variance
+            v_net_expected_input = [config.env_handler.observation_space]
+            v_net_expected_output = [[1]]
         else:
             raise ValueError(f"Missing network architecture check for action_type {self.action_type.name}")
             
@@ -284,12 +284,12 @@ class ActorCritic(Trainer):
 
     def save(self) -> None:
         # Create dirs if needed
-        os.makedirs(self.config.instance_savefolder(), exist_ok = True)
+        os.makedirs(Config.instance_save_folder(self.config.name, self.config.instance), exist_ok = True)
         
-        policy_network_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
-        v_network_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_V_NETWORK_SAVENAME)
-        v_target_network_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_STATE_SAVENAME)
+        policy_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
+        v_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_V_NETWORK_SAVENAME)
+        v_target_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_STATE_SAVENAME)
         
         # Save network weights
         torch.save(self.policy_network.state_dict(), policy_network_savepath)
@@ -305,11 +305,11 @@ class ActorCritic(Trainer):
 
     def load(self, folder: Optional[str] = None) -> None:
         if folder is None:
-            folder = self.config.instance_savefolder()
-        policy_network_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
-        v_network_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_V_NETWORK_SAVENAME)
-        v_target_network_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(self.config.instance_savefolder(), ACTOR_CRITIC_STATE_SAVENAME)
+            folder = Config.instance_save_folder(self.config.name, self.config.instance)
+        policy_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
+        v_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_V_NETWORK_SAVENAME)
+        v_target_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), ACTOR_CRITIC_STATE_SAVENAME)
         
         if not os.path.exists(policy_network_savepath) or \
             not os.path.exists(v_network_savepath) or \
@@ -339,7 +339,7 @@ class ActorCritic(Trainer):
         (torch.FloatTensor):                    Loss for policy function (Using REINFORCE objective with baseline and entropy objective)
         (torch.FloatTensor):                    Loss for value function (TD error or MC error depending on exp type)
     '''
-    def calc_mean_losses(self, exp_minibatch: Union[list[ExpSars], list[ExpMC]]) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def calc_mean_losses(self, exp_minibatch: Union[list[ExpSars], list[ExpMC]]) -> list[torch.FloatTensor, torch.FloatTensor]:
         if self.action_type is ActionType.DISCRETE:
             # Exp Tensors
             s = torch.from_numpy(np.array([e.state for e in exp_minibatch])).type(torch.float32).to(DEVICE)
@@ -441,4 +441,9 @@ class ActorCritic(Trainer):
                            oob_high * upper_cum_log_prob_per_dim + \
                            in_bounds * action_log_prob_per_dim
         log_prob = torch.sum(torch.flatten(log_prob_per_dim, start_dim = 1), dim = -1)
-        return log_prob
+        return log_prob    
+    
+    
+# Register for importing
+from config.module_importer import REGISTER_MODULE
+REGISTER_MODULE(__name__)
