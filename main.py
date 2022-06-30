@@ -23,6 +23,7 @@ Manages and handles all other components based on a particular config and run ty
 # Constants
 WANDB_PROJECT_NAME = "RL_Sandbox"
 PERIODIC_RECORD_TIME = 5 # Minutes between triggering new policy recording
+PERIODIC_RECORD_EPISODE_COUNT = 3 # Number of episodes to record at each periodic record trigger
 PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
 
 
@@ -123,7 +124,7 @@ if __name__ == '__main__':
     wandb.login()
     wandb.init(
         project=WANDB_PROJECT_NAME,
-        name=f"{config.name}_{config.instance}",
+        name=f"{config.name}.i{config.instance}",
         config=config_to_dict(config),
         monitor_gym=False
     )
@@ -144,8 +145,8 @@ if __name__ == '__main__':
             trajectories = env_handler.run_episodes(trainer.current_policy(), config.trainer.episodes_per_step)
             
             # Log Experience Metrics
-            log_dict["total_reward"] = np.mean([t.total_reward() for t in trajectories])
-            log_dict["average_episode_length"] = np.mean([t.length() for t in trajectories])
+            log_dict["episode_reward"] = np.mean([t.total_reward() for t in trajectories])
+            log_dict["episode_length"] = np.mean([t.length() for t in trajectories])
             
             # Add Experience to Buffer
             exp_buffer.add_trajectories(trajectories)
@@ -169,11 +170,8 @@ if __name__ == '__main__':
             
             # Record policy periodically
             if time.time() - last_record_time >= PERIODIC_RECORD_TIME * 60:
-                recorded_video_paths = env_handler.record_episodes(trainer.current_policy(), 3, trainer.current_train_step())
-                log_dict.update({
-                    f"recording_{i}": wandb.Video(path, format=path.split(".")[-1])
-                    for i, path in enumerate(recorded_video_paths)
-                })
+                recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
+                log_dict["recording"] = wandb.Video(recording_path, format="gif")
                 last_record_time = time.time()
                 
             # Upload logs for this train step
@@ -188,9 +186,6 @@ if __name__ == '__main__':
         trainer.save()    
         
         # Record final policy
-        recorded_video_paths = env_handler.record_episodes(trainer.current_policy(), 3, trainer.current_train_step())
-        log_dict.update({
-            f"recording_{i}": wandb.Video(path, format=path.split(".")[-1])
-            for i, path in enumerate(recorded_video_paths)
-        })
+        recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
+        log_dict["recording"] = wandb.Video(recording_path, format="gif")
         wandb.log(log_dict)
