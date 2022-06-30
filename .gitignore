@@ -1,6 +1,9 @@
 # Saved models and logs
 saves/
 
+# Weights and Biases
+wandb/
+
 # Python compiled files
 __pycache__/
 

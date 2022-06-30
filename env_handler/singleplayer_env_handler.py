@@ -1,7 +1,8 @@
 import gym
 import os, shutil
-from typing import Optional, Union, Tuple
+from typing import Optional, Union
 from tqdm import trange
+from moviepy.editor import VideoFileClip
 
 from config.config import Config
 from policy.policy import Policy
@@ -118,7 +119,17 @@ class SinglePlayerEnvHandler:
             trajectories.append(self.run_episode(policy))
         return trajectories
     
-    def record_episodes(self, policy: Policy, count: int, train_step: int) -> None:
+    '''
+    Records example episodes under the given policy, saving them as gifs (converted from default mp4 format).
+    Videos are saved both in the saves folder, and the most recent videos are saved in the examples folder.
+    Args:
+        policy (Policy):    The policy to query throughout the episode
+        count (int):        The number of episodes to record and save
+        train_step (int):   The training iteration this policy represents, which is included in the save video names
+    Returns:
+        list[str]:          List of paths referencing videos recorded during this function call
+    '''
+    def record_episodes(self, policy: Policy, count: int, train_step: int) -> list[str]:
         record_path = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), RECORDING_DIR)
         step_id = f"step-{train_step}"
         #wrapped_env = gym.wrappers.RecordVideo(self.env, record_path, episode_trigger = lambda x: True, name_prefix = f"step-{train_step}")
@@ -137,22 +148,33 @@ class SinglePlayerEnvHandler:
                 if file.name.endswith(".json"):
                     os.remove(file.path)
                     
-                # Rename mp4 files
+                # Rename mp4 files and convert to gifs
                 if file.name.endswith(".mp4"):
                     name_parts = file.name.split('.')
                     name_step_id = name_parts[3]
                     step_record_it = str(int(name_parts[4][5:])) # Remove "video" prefix and leading 0s from number
-                    new_filename = '.'.join([name_step_id, step_record_it, "mp4"])
-                    os.replace(file.path, os.path.join(record_path, new_filename))
+                    new_filename = '.'.join([name_step_id, step_record_it, "gif"])
+                    
+                    VideoFileClip(file.path).write_gif(os.path.join(record_path, new_filename))
+                    os.remove(file.path)
+                    
+        # Save paths for newly recorded videos (after renaming)
+        video_paths = []
             
         # Replace example folder contents with newest recordings
-        os.makedirs(Config.instance_example_folder(self.config.name, self.config.instance), exist_ok = True)
-        for file in os.scandir(Config.instance_example_folder(self.config.name, self.config.instance)):
+        instance_example_folder = Config.instance_example_folder(self.config.name, self.config.instance)
+        os.makedirs(instance_example_folder, exist_ok = True)
+        for file in os.scandir(instance_example_folder):
             os.remove(file.path)
         for file in os.scandir(record_path):
-            if file.name.find(step_id) >= 0:
-                shutil.copyfile(file.path, os.path.join(Config.instance_example_folder(self.config.name, self.config.instance), file.name))
+            if file.name.split(".")[0] == step_id:
+                # Save filepath (in save folder, not example folder) for returning
+                video_paths.append(file.path)
                 
+                # Copy to example folder
+                shutil.copyfile(file.path, os.path.join(instance_example_folder, file.name))
+                
+        return video_paths
     
     
     

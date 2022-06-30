@@ -4,12 +4,13 @@ from tqdm import trange
 import numpy as np
 import time
 import json
+import wandb
 
 from torch.utils import tensorboard
 
 from config.config_registry import get_config
 from config.config import Config
-from config.config_io import load_config, save_config
+from config.config_io import load_config, save_config, config_to_dict
 from env_handler.singleplayer_env_handler import EnvHandler
 from exp_buffer.exp_buffer import ExpBuffer
 from trainer.trainer import Trainer
@@ -20,7 +21,7 @@ Manages and handles all other components based on a particular config and run ty
 '''
 
 # Constants
-LOG_DIR_NAME = "logs"
+WANDB_PROJECT_NAME = "RL_Sandbox"
 PERIODIC_RECORD_TIME = 5 # Minutes between triggering new policy recording
 PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
 
@@ -118,11 +119,14 @@ if __name__ == '__main__':
         exp_buffer.load()
     trainer.load()
     
-    # Log Writer
-    log_dir_path = os.path.join(Config.instance_save_folder(config.name, config.instance), LOG_DIR_NAME)
-    log_writer = tensorboard.SummaryWriter(log_dir = log_dir_path)
-    
-    
+    # Log Writer (wandb)
+    wandb.login()
+    wandb.init(
+        project=WANDB_PROJECT_NAME,
+        name=f"{config.name}_{config.instance}",
+        config=config_to_dict(config),
+        monitor_gym=False
+    )
     
     '''
     Experiment/Training Loop
@@ -133,12 +137,15 @@ if __name__ == '__main__':
         last_save_time = time.time()
         
         for i in trange(args.train_iter):
+            # Dict for log info at this step
+            log_dict = {}
+            
             # Experience Step
             trajectories = env_handler.run_episodes(trainer.current_policy(), config.trainer.episodes_per_step)
             
             # Log Experience Metrics
-            log_writer.add_scalar("total_reward", np.mean([t.total_reward() for t in trajectories]), trainer.current_train_step())
-            log_writer.add_scalar("average_episode_length", np.mean([t.length() for t in trajectories]), trainer.current_train_step())
+            log_dict["total_reward"] = np.mean([t.total_reward() for t in trajectories])
+            log_dict["average_episode_length"] = np.mean([t.length() for t in trajectories])
             
             # Add Experience to Buffer
             exp_buffer.add_trajectories(trajectories)
@@ -147,8 +154,7 @@ if __name__ == '__main__':
             train_metrics = trainer.train(exp_buffer)
             
             # Log Train Metrics
-            for key, val in train_metrics.items():
-                log_writer.add_scalar(key, val, trainer.current_train_step())
+            log_dict.update(train_metrics)
                 
             # Clear exp buffer after training if on-policy
             if trainer.on_policy():
@@ -163,8 +169,15 @@ if __name__ == '__main__':
             
             # Record policy periodically
             if time.time() - last_record_time >= PERIODIC_RECORD_TIME * 60:
-                env_handler.record_episodes(trainer.current_policy(), 3, trainer.current_train_step())
+                recorded_video_paths = env_handler.record_episodes(trainer.current_policy(), 3, trainer.current_train_step())
+                log_dict.update({
+                    f"recording_{i}": wandb.Video(path, format=path.split(".")[-1])
+                    for i, path in enumerate(recorded_video_paths)
+                })
                 last_record_time = time.time()
+                
+            # Upload logs for this train step
+            wandb.log(log_dict)
                 
     except KeyboardInterrupt:
         print("Training loop aborted. Saving final state before exit...")
@@ -175,4 +188,9 @@ if __name__ == '__main__':
         trainer.save()    
         
         # Record final policy
-        env_handler.record_episodes(trainer.current_policy(), 3, trainer.current_train_step())
+        recorded_video_paths = env_handler.record_episodes(trainer.current_policy(), 3, trainer.current_train_step())
+        log_dict.update({
+            f"recording_{i}": wandb.Video(path, format=path.split(".")[-1])
+            for i, path in enumerate(recorded_video_paths)
+        })
+        wandb.log(log_dict)

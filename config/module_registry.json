@@ -57,5 +57,10 @@
   "RMSprop": "torch.optim.rmsprop",
   "Rprop": "torch.optim.rprop",
   "SGD": "torch.optim.sgd",
-  "SparseAdam": "torch.optim.sparse_adam"
+  "SparseAdam": "torch.optim.sparse_adam",
+  "QLearning": "trainer.q_learning",
+  "QLearning_Config": "trainer.q_learning",
+  "DoubleQLearning": "trainer.double_q_learning",
+  "DoubleQLearning_Config": "trainer.double_q_learning",
+  "VideoFileClip": "moviepy.video.io.VideoFileClip"
 }

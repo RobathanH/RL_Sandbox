@@ -19,6 +19,9 @@ def save_config(config: Config) -> None:
 def load_config(config_name: str, config_instance: int) -> Config:
     with open(Config.instance_save_path(config_name, config_instance), "r") as fp:
         return json.load(fp, cls = ConfigDecoder)
+    
+def config_to_dict(config: Config) -> dict:
+    return json.loads(json.dumps(config, cls = ConfigEncoder))
 
 '''
 JSON Encoder/Decoder for Config instances
