@@ -421,8 +421,8 @@ class ActorCritic(Trainer):
     '''
     def log_prob_gaussian(self, means: torch.FloatTensor, log_vars: torch.FloatTensor, actions: torch.FloatTensor) -> torch.FloatTensor:        
         # Determine which dimensions are out of bounds in each row
-        lower_bound = torch.from_numpy(self.config.env_handler.action_space.lower_bound).reshape((1,) + self.config.env_handler.action_space.shape).to(DEVICE)
-        upper_bound = torch.from_numpy(self.config.env_handler.action_space.upper_bound).reshape((1,) + self.config.env_handler.action_space.shape).to(DEVICE)
+        lower_bound = torch.from_numpy(self.config.env_handler.action_space.lower_bound).reshape([1] + self.config.env_handler.action_space.shape).to(DEVICE)
+        upper_bound = torch.from_numpy(self.config.env_handler.action_space.upper_bound).reshape([1] + self.config.env_handler.action_space.shape).to(DEVICE)
         oob_low = (actions <= lower_bound)
         oob_high = (actions >= upper_bound)
         in_bounds = torch.bitwise_not(torch.bitwise_or(oob_low, oob_high))
