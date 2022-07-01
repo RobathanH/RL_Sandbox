@@ -10,7 +10,6 @@ from torch.utils import tensorboard
 
 from config.config_registry import get_config
 from config.config import Config
-from config.config_io import load_config, save_config, config_to_dict
 from env_handler.singleplayer_env_handler import EnvHandler
 from exp_buffer.exp_buffer import ExpBuffer
 from trainer.trainer import Trainer
@@ -25,6 +24,97 @@ WANDB_PROJECT_NAME = "RL_Sandbox"
 PERIODIC_RECORD_TIME = 5 # Minutes between triggering new policy recording
 PERIODIC_RECORD_EPISODE_COUNT = 3 # Number of episodes to record at each periodic record trigger
 PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
+
+
+'''
+Core training function.
+Requires wandb run to be initialized.
+'''
+def train(config: Config, train_iterations: int, wandb_run: wandb.run) -> None:
+    if wandb_run is None:
+        raise ValueError(f"wandb run must be initialized")
+    
+    '''
+    Component Setup
+    '''
+    
+    # Major Components
+    env_handler: EnvHandler = config.env_handler.get_class()(config)
+    exp_buffer: ExpBuffer = config.exp_buffer.get_class()(config)
+    trainer: Trainer = config.trainer.get_class()(config)
+    
+    # Load component states if they exist
+    if not trainer.on_policy():
+        exp_buffer.load()
+    trainer.load()
+    
+    '''
+    Experiment/Training Loop
+    '''
+    try:
+        
+        last_record_time = time.time()
+        last_save_time = time.time()
+        
+        for i in trange(train_iterations):
+            # Dict for log info at this step
+            log_dict = {}
+            
+            # Experience Step
+            trajectories = env_handler.run_episodes(trainer.current_policy(), config.trainer.episodes_per_step)
+            
+            # Log Experience Metrics
+            log_dict["episode_reward"] = np.mean([t.total_reward() for t in trajectories])
+            log_dict["episode_length"] = np.mean([t.length() for t in trajectories])
+            
+            # Add Experience to Buffer
+            exp_buffer.add_trajectories(trajectories)
+            
+            # Train Step
+            train_metrics = trainer.train(exp_buffer)
+            
+            # Log Train Metrics
+            log_dict.update(train_metrics)
+                
+            # Clear exp buffer after training if on-policy
+            if trainer.on_policy():
+                exp_buffer.clear()
+            
+            # Save after each training step
+            if time.time() - last_save_time >= PERIODIC_SAVE_TIME * 60:
+                if not trainer.on_policy():
+                    exp_buffer.save()
+                trainer.save()
+                last_save_time = time.time()
+            
+            # Record policy periodically
+            if time.time() - last_record_time >= PERIODIC_RECORD_TIME * 60:
+                recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
+                log_dict["recording"] = wandb.Video(recording_path, format="gif")
+                last_record_time = time.time()
+                
+            # Upload logs for this train step
+            wandb.log(log_dict)
+                
+    except KeyboardInterrupt:
+        print("Training loop aborted. Saving final state before exit...")
+    finally:
+        # Save final state
+        if not trainer.on_policy():
+            exp_buffer.save()
+        trainer.save()    
+        
+        # Record final policy
+        recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
+        log_dict["recording"] = wandb.Video(recording_path, format="gif")
+        wandb.log(log_dict)
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
@@ -78,12 +168,16 @@ if __name__ == '__main__':
         config = get_config(name)
         
         # Convert to new instance (change instance index and apply optional overrides)
-        config.to_new_instance(instance, args.overrides)
+        config = config.create_new_instance(instance, args.overrides)
         
-        # TODO: Clear any existing files for this instance
+        # Clear any existing files for this instance
+        if os.path.exists(Config.instance_save_folder(config.name, config.instance)):
+            shutil.rmtree(Config.instance_save_folder(config.name, config.instance))
+        if os.path.exists(Config.instance_example_folder(config.name, config.instance)):
+            shutil.rmtree(Config.instance_example_folder(config.name, config.instance))
         
         # Save config file (for future loading)
-        save_config(config)
+        config.save()
         
     # Load existing instance
     elif args.action == "load":
@@ -98,94 +192,27 @@ if __name__ == '__main__':
         if not Config.instance_save_exists(name, instance):
             raise ValueError(f"No config instance exists with name = {name}, instance = {instance}")
         
-        config = load_config(name, instance)
+        config = Config.load(name, instance)
         
     # Unrecognized action
     else:
         raise ValueError(f"Unrecognized action {args.action}")
     
     
-    
     '''
-    Component Setup
+    Wandb Setup
     '''
-    
-    # Major Components
-    env_handler: EnvHandler = config.env_handler.get_class()(config)
-    exp_buffer: ExpBuffer = config.exp_buffer.get_class()(config)
-    trainer: Trainer = config.trainer.get_class()(config)
-    
-    # Load component states if they exist
-    if not trainer.on_policy():
-        exp_buffer.load()
-    trainer.load()
-    
-    # Log Writer (wandb)
     wandb.login()
-    wandb.init(
+    wandb_run = wandb.init(
         project=WANDB_PROJECT_NAME,
         name=f"{config.name}.i{config.instance}",
-        config=config_to_dict(config),
-        monitor_gym=False
+        config=config.to_dict()
     )
     
+    print(json.dumps(config.to_dict(), indent=2))
+    
+    
     '''
-    Experiment/Training Loop
+    Training function
     '''
-    try:
-        
-        last_record_time = time.time()
-        last_save_time = time.time()
-        
-        for i in trange(args.train_iter):
-            # Dict for log info at this step
-            log_dict = {}
-            
-            # Experience Step
-            trajectories = env_handler.run_episodes(trainer.current_policy(), config.trainer.episodes_per_step)
-            
-            # Log Experience Metrics
-            log_dict["episode_reward"] = np.mean([t.total_reward() for t in trajectories])
-            log_dict["episode_length"] = np.mean([t.length() for t in trajectories])
-            
-            # Add Experience to Buffer
-            exp_buffer.add_trajectories(trajectories)
-            
-            # Train Step
-            train_metrics = trainer.train(exp_buffer)
-            
-            # Log Train Metrics
-            log_dict.update(train_metrics)
-                
-            # Clear exp buffer after training if on-policy
-            if trainer.on_policy():
-                exp_buffer.clear()
-            
-            # Save after each training step
-            if time.time() - last_save_time >= PERIODIC_SAVE_TIME * 60:
-                if not trainer.on_policy():
-                    exp_buffer.save()
-                trainer.save()
-                last_save_time = time.time()
-            
-            # Record policy periodically
-            if time.time() - last_record_time >= PERIODIC_RECORD_TIME * 60:
-                recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
-                log_dict["recording"] = wandb.Video(recording_path, format="gif")
-                last_record_time = time.time()
-                
-            # Upload logs for this train step
-            wandb.log(log_dict)
-                
-    except KeyboardInterrupt:
-        print("Training loop aborted. Saving final state before exit...")
-    finally:
-        # Save final state
-        if not trainer.on_policy():
-            exp_buffer.save()
-        trainer.save()    
-        
-        # Record final policy
-        recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
-        log_dict["recording"] = wandb.Video(recording_path, format="gif")
-        wandb.log(log_dict)
+    train(config, args.train_iter, wandb_run)

@@ -3,25 +3,9 @@ from dataclasses import is_dataclass
 import numpy as np
 from enum import Enum
 
-from .config import Config
 from .module_importer import GET_CLASS
 
-'''
-Methods for saving and loading Config objects
-'''
 
-def save_config(config: Config) -> None:
-    os.makedirs(Config.instance_save_folder(config.name, config.instance), exist_ok=True)
-    
-    with open(Config.instance_save_path(config.name, config.instance), "w") as fp:
-        json.dump(config, fp, cls = ConfigEncoder, indent=2)
-        
-def load_config(config_name: str, config_instance: int) -> Config:
-    with open(Config.instance_save_path(config_name, config_instance), "r") as fp:
-        return json.load(fp, cls = ConfigDecoder)
-    
-def config_to_dict(config: Config) -> dict:
-    return json.loads(json.dumps(config, cls = ConfigEncoder))
 
 '''
 JSON Encoder/Decoder for Config instances

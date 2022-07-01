@@ -62,5 +62,7 @@
   "QLearning_Config": "trainer.q_learning",
   "DoubleQLearning": "trainer.double_q_learning",
   "DoubleQLearning_Config": "trainer.double_q_learning",
-  "VideoFileClip": "moviepy.video.io.VideoFileClip"
+  "VideoFileClip": "moviepy.video.io.VideoFileClip",
+  "ConfigDecoder": "config.config_io",
+  "ConfigEncoder": "config.config_io"
 }

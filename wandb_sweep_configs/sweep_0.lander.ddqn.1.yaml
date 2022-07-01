@@ -1,0 +1,33 @@
+program: main.py
+project: RL_Sandbox
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "lander.ddqn.1"
+  - "new"
+  - "-t"
+  - "200"
+  - "--overrides"
+  - ${args_json}
+method: bayes
+metric:
+  goal: maximize
+  name: episode_reward
+parameters:
+  __value__.trainer.__value__.soft_target_update_fraction:
+    max: 0.5
+    min: 0.001
+    distribution: log_uniform_values
+  __value__.trainer.__value__.epsilon_schedule.__value__.start:
+    max: 1
+    min: 0.25
+    distribution: uniform
+  __value__.trainer.__value__.learning_rate.__value__.start:
+    max: 0.01
+    min: 0.0001
+    distribution: log_uniform_values
+  __value__.trainer.__value__.weight_decay:
+    max: 0.01
+    min: 0.00001
+    distribution: log_uniform_values
