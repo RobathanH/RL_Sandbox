@@ -2,6 +2,9 @@ import gym
 import os, shutil
 from typing import Optional, Union
 from tqdm import trange
+
+# Bugfix for linux
+os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 from config.config import Config

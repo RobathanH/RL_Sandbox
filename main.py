@@ -30,7 +30,7 @@ PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
 Core training function.
 Requires wandb run to be initialized.
 '''
-def train(config: Config, train_iterations: int, wandb_run: wandb.run) -> None:
+def train(config: Config, train_iterations: int, record: bool, wandb_run: wandb.run) -> None:
     if wandb_run is None:
         raise ValueError(f"wandb run must be initialized")
     
@@ -88,7 +88,7 @@ def train(config: Config, train_iterations: int, wandb_run: wandb.run) -> None:
                 last_save_time = time.time()
             
             # Record policy periodically
-            if time.time() - last_record_time >= PERIODIC_RECORD_TIME * 60:
+            if record and time.time() - last_record_time >= PERIODIC_RECORD_TIME * 60:
                 recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
                 log_dict["recording"] = wandb.Video(recording_path, format="gif")
                 last_record_time = time.time()
@@ -105,9 +105,10 @@ def train(config: Config, train_iterations: int, wandb_run: wandb.run) -> None:
         trainer.save()    
         
         # Record final policy
-        recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
-        log_dict["recording"] = wandb.Video(recording_path, format="gif")
-        wandb.log(log_dict)
+        if record:
+            recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
+            log_dict["recording"] = wandb.Video(recording_path, format="gif")
+            wandb.log(log_dict)
 
 
 
@@ -136,6 +137,9 @@ if __name__ == '__main__':
     
     # Training Options
     argparser.add_argument("-t", "--train_iter", type=int, default=1, help="Number of experimentation-training loops to perform.")
+
+    # Disable Periodic Policy Recording
+    argparser.add_argument("--disable_recording", action="store_true", help="Disable periodic policy episode recording")
     
     # Config Overrides
     argparser.add_argument(
@@ -215,4 +219,4 @@ if __name__ == '__main__':
     '''
     Training function
     '''
-    train(config, args.train_iter, wandb_run)
+    train(config, args.train_iter, not args.disable_recording, wandb_run)

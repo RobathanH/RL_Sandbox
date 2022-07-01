@@ -8,6 +8,7 @@ command:
   - "new"
   - "-t"
   - "200"
+  - "--disable_recording"
   - "--overrides"
   - ${args_json}
 method: bayes
