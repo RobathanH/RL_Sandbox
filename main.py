@@ -6,21 +6,17 @@ import time
 import json
 import wandb
 
-from torch.utils import tensorboard
-
-from config.config_registry import get_config
 from config.config import Config
 from env_handler.singleplayer_env_handler import EnvHandler
 from exp_buffer.exp_buffer import ExpBuffer
 from trainer.trainer import Trainer
-
+from run_manager import load_run, create_run
 
 '''
 Manages and handles all other components based on a particular config and run type
 '''
 
 # Constants
-WANDB_PROJECT_NAME = "RL_Sandbox"
 PERIODIC_RECORD_TIME = 5 # Minutes between triggering new policy recording
 PERIODIC_RECORD_EPISODE_COUNT = 3 # Number of episodes to record at each periodic record trigger
 PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
@@ -30,8 +26,8 @@ PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
 Core training function.
 Requires wandb run to be initialized.
 '''
-def train(config: Config, train_iterations: int, record: bool, wandb_run: wandb.run) -> None:
-    if wandb_run is None:
+def train(config: Config, train_iterations: int, record: bool) -> None:
+    if wandb.run is None:
         raise ValueError(f"wandb run must be initialized")
     
     '''
@@ -43,7 +39,7 @@ def train(config: Config, train_iterations: int, record: bool, wandb_run: wandb.
     exp_buffer: ExpBuffer = config.exp_buffer.get_class()(config)
     trainer: Trainer = config.trainer.get_class()(config)
     
-    # Load component states if they exist
+    # Load component states from wandb-synced checkpoints if they exist
     if not trainer.on_policy():
         exp_buffer.load()
     trainer.load()
@@ -133,7 +129,7 @@ if __name__ == '__main__':
         'load' loads saves from existing instance for this config, then trains.")
     
     # Specify instance index
-    argparser.add_argument("-i", "--instance", type=int, default=None, help="Instance to target. Required for 'load' action, allows overriding existing instances for 'new' action.")
+    argparser.add_argument("-i", "--instance", type=int, default=None, help="Instance to target. Required for 'load' action, no effect for 'new' action.")
     
     # Training Options
     argparser.add_argument("-t", "--train_iter", type=int, default=1, help="Number of experimentation-training loops to perform.")
@@ -158,65 +154,30 @@ if __name__ == '__main__':
     
     # Create new instance
     if args.action == "new":
-        name = args.name
-        if args.instance is not None:
-            instance = args.instance
-        else:
-            max_saved_instance = Config.max_saved_instance(name)
-            if max_saved_instance is not None:
-                instance = max_saved_instance + 1
-            else:
-                instance = 0
         
-        # Load base config
-        config = get_config(name)
-        
-        # Convert to new instance (change instance index and apply optional overrides)
-        config = config.create_new_instance(instance, args.overrides)
-        
-        # Clear any existing files for this instance
-        if os.path.exists(Config.instance_save_folder(config.name, config.instance)):
-            shutil.rmtree(Config.instance_save_folder(config.name, config.instance))
-        if os.path.exists(Config.instance_example_folder(config.name, config.instance)):
-            shutil.rmtree(Config.instance_example_folder(config.name, config.instance))
-        
-        # Save config file (for future loading)
-        config.save()
+        # Initialize wandb run and config
+        config = create_run(args.name, args.overrides)
         
     # Load existing instance
     elif args.action == "load":
-        name = args.name
-        instance = args.instance
         
         # Error if instance not specified
-        if instance is None:
+        if args.instance is None:
             raise ValueError(f"'load' action requires specified instance.")
         
-        # Error if instance does not exist
-        if not Config.instance_save_exists(name, instance):
-            raise ValueError(f"No config instance exists with name = {name}, instance = {instance}")
-        
-        config = Config.load(name, instance)
+        # Initialize wandb run and config
+        config = load_run(args.name, args.instance)
         
     # Unrecognized action
     else:
         raise ValueError(f"Unrecognized action {args.action}")
     
     
-    '''
-    Wandb Setup
-    '''
-    wandb.login()
-    wandb_run = wandb.init(
-        project=WANDB_PROJECT_NAME,
-        name=f"{config.name}.i{config.instance}",
-        config=config.to_dict()
-    )
-    
-    print(json.dumps(config.to_dict(), indent=2))
+    # Print config json
+    print(config.to_str(indent=2))
     
     
     '''
     Training function
     '''
-    train(config, args.train_iter, not args.disable_recording, wandb_run)
+    train(config, args.train_iter, not args.disable_recording)

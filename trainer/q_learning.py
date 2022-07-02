@@ -202,12 +202,9 @@ class QLearning(Trainer):
     # Loading and Saving
 
     def save(self) -> None:
-        # Create dirs if needed
-        os.makedirs(Config.instance_save_folder(self.config.name, self.config.instance), exist_ok = True)
-        
-        network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), Q_LEARNING_NETWORK_SAVENAME)
-        target_network_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), Q_LEARNING_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), Q_LEARNING_STATE_SAVENAME)
+        network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_NETWORK_SAVENAME)
+        target_network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_STATE_SAVENAME)
         
         # Save network weights
         torch.save(self.q_net.state_dict(), network_savepath)
@@ -220,12 +217,10 @@ class QLearning(Trainer):
         with open(state_savepath, 'w') as fp:
             json.dump(state, fp, indent=2)
 
-    def load(self, folder: Optional[str] = None) -> None:
-        if folder is None:
-            folder = Config.instance_save_folder(self.config.name, self.config.instance)
-        network_savepath = os.path.join(folder, Q_LEARNING_NETWORK_SAVENAME)
-        target_network_savepath = os.path.join(folder, Q_LEARNING_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(folder, Q_LEARNING_STATE_SAVENAME)
+    def load(self) -> None:
+        network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_NETWORK_SAVENAME)
+        target_network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_STATE_SAVENAME)
         
         if not os.path.exists(network_savepath) or not os.path.exists(target_network_savepath) or not os.path.exists(state_savepath):
             return

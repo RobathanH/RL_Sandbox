@@ -30,17 +30,11 @@ class MCExpBuffer(ExpBuffer):
     # File Operations
 
     def save(self) -> None:
-        # Create dirs if needed
-        os.makedirs(Config.instance_save_folder(self.config.name, self.config.instance), exist_ok = True)
-        
-        savepath = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), EXP_BUFFER_SAVENAME)
+        savepath = os.path.join(Config.checkpoint_folder(), EXP_BUFFER_SAVENAME)
         torch.save(self.data, savepath)
 
-    def load(self, folder: Optional[str] = None) -> None:
-        if folder is None:
-            folder = Config.instance_save_folder(self.config.name, self.config.instance)
-
-        savepath = os.path.join(folder, EXP_BUFFER_SAVENAME)
+    def load(self) -> None:
+        savepath = os.path.join(Config.checkpoint_folder(), EXP_BUFFER_SAVENAME)
         
         if not os.path.exists(savepath):
             return
@@ -55,7 +49,7 @@ class MCExpBuffer(ExpBuffer):
         self.data = {}
         self.next_index = 0
     
-    def add_trajectories(self, trajs: List[Trajectory]) -> None:
+    def add_trajectories(self, trajs: list[Trajectory]) -> None:
         for traj in trajs:
             self.add_trajectory(traj)
 
@@ -86,7 +80,7 @@ class MCExpBuffer(ExpBuffer):
         count   (Optional[int]):    Number of experiences to return.
         shuffle (bool):             Whether to shuffle the returned experiences.
     '''
-    def get(self, count: Optional[int] = None, shuffle: bool = True) -> List[Any]:
+    def get(self, count: Optional[int] = None, shuffle: bool = True) -> list[Any]:
         if count is None:
             count = len(self.data)
         else:

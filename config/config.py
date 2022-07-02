@@ -4,6 +4,7 @@ import os
 import json
 from typing import Any, Optional
 import numpy as np
+import wandb
 
 from env_handler.env_handler import EnvHandler_Config
 from exp_buffer.exp_buffer import ExpBuffer_Config
@@ -15,15 +16,7 @@ from .config_io import ConfigDecoder, ConfigEncoder
 Config dataclass that specifies a particular instance of an RL method on a particular environment.
 Contains multiple config dataclasses for specific components
 '''
-        
-    
-    
 
-# Save Info (model data, etc saved in 'global_save_folder/name/instance/...')
-GLOBAL_SAVE_FOLDER = "saves" # Folder to save data for any and all config instances
-GLOBAL_EXAMPLE_FOLDER = "examples" # Folder to save examples from most recent training for any and all config instances
-CONFIG_SAVENAME = "config.json"
-INSTANCE_FOLDER_PREFIX = "instance_"
 @dataclass
 class Config:
     name: str                                   # Unique config identifier
@@ -41,6 +34,13 @@ class Config:
     
     instance: int = 0                           # Allows multiple saves and versions of the same base config
 
+
+
+    '''
+    Wandb run name for this config instance, combining both config name and instance index.
+    '''
+    def wandb_run_name(self) -> str:
+        return f"{self.name}.{self.instance}"
 
 
     '''
@@ -88,25 +88,23 @@ class Config:
 
 
     '''
-    File I/O
+    Directory for storing checkpoint files which will be synced with wandb for each run
     '''
-    
-    def save(self) -> None:
-        os.makedirs(Config.instance_save_folder(self.name, self.instance), exist_ok=True)
-        
-        with open(Config.instance_save_path(self.name, self.instance), "w") as fp:
-            json.dump(self, fp, cls = ConfigEncoder, indent=2)
+    @staticmethod
+    def checkpoint_folder() -> str:
+        return wandb.run.dir
+
+
+
+    '''
+    Format Transforms
+    '''
         
     def to_str(self, **kargs) -> str:
         return json.dumps(self, cls=ConfigEncoder, **kargs)    
     
     def to_dict(self) -> dict:
         return json.loads(self.to_str())
-    
-    @staticmethod
-    def load(config_name: str, config_instance: int) -> 'Config':
-        with open(Config.instance_save_path(config_name, config_instance), "r") as fp:
-            return json.load(fp, cls = ConfigDecoder)
 
     @staticmethod
     def from_str(config_str: str) -> 'Config':
@@ -115,56 +113,6 @@ class Config:
     @staticmethod
     def from_dict(config_dict: dict) -> 'Config':
         return Config.from_str(json.dumps(config_dict))
-    
-    
-
-    '''
-    Static Config JSON File Organization
-    '''
-    
-    @staticmethod
-    def global_save_folder() -> str:
-        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", GLOBAL_SAVE_FOLDER))
-    
-    @staticmethod
-    def config_save_folder(config_name: str) -> str:
-        return os.path.join(Config.global_save_folder(), config_name)
-    
-    @staticmethod
-    def instance_save_folder(config_name: str, config_instance: int) -> str:
-        return os.path.join(Config.config_save_folder(config_name), f"{INSTANCE_FOLDER_PREFIX}{config_instance}")
-    
-    @staticmethod
-    def instance_save_path(config_name: int, config_instance: int) -> str:
-        return os.path.join(Config.instance_save_folder(config_name, config_instance), CONFIG_SAVENAME)
-    
-    @staticmethod
-    def instance_save_exists(config_name: str, config_instance: int) -> str:
-        return os.path.exists(Config.instance_save_path(config_name, config_instance))
-    
-    @staticmethod
-    def max_saved_instance(config_name: str) -> Optional[int]:
-        max_instance = None
-        if os.path.exists(Config.config_save_folder(config_name)):
-            for name in os.listdir(Config.config_save_folder(config_name)):
-                if name.startswith(INSTANCE_FOLDER_PREFIX):
-                    instance = int(name[len(INSTANCE_FOLDER_PREFIX):])
-                    if max_instance is None or instance > max_instance:
-                        max_instance = instance
-        return max_instance
-    
-    
-    @staticmethod
-    def global_example_folder() -> str:
-        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", GLOBAL_EXAMPLE_FOLDER))
-    
-    @staticmethod
-    def config_example_folder(config_name: str) -> str:
-        return os.path.join(Config.global_example_folder(), config_name)
-    
-    @staticmethod
-    def instance_example_folder(config_name: str, config_instance: int) -> str:
-        return os.path.join(Config.config_example_folder(config_name), f"{INSTANCE_FOLDER_PREFIX}{config_instance}")
     
     
     

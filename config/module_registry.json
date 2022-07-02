@@ -64,5 +64,6 @@
   "DoubleQLearning_Config": "trainer.double_q_learning",
   "VideoFileClip": "moviepy.video.io.VideoFileClip",
   "ConfigDecoder": "config.config_io",
-  "ConfigEncoder": "config.config_io"
+  "ConfigEncoder": "config.config_io",
+  "TemporaryDirectory": "tempfile"
 }

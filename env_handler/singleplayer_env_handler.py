@@ -2,10 +2,7 @@ import gym
 import os, shutil
 from typing import Optional, Union
 from tqdm import trange
-
-# Bugfix for linux
-os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from tempfile import TemporaryDirectory
 
 from config.config import Config
 from policy.policy import Policy
@@ -54,8 +51,6 @@ class SinglePlayerEnvHandler_Config(EnvHandler_Config):
 
 
 
-# File Constants
-RECORDING_DIR = "recordings"
 
 '''
 Base EnvHandler Class
@@ -124,7 +119,7 @@ class SinglePlayerEnvHandler:
     
     '''
     Records example episodes under the given policy, saving them as a concatenated gif (converted from default mp4 format).
-    The resulting gif is saved in the saves folder, and the most recent step recording is saved in the examples folder.
+    The resulting gif is saved in the checkpoint folder, overwriting any previous recordings.
     Args:
         policy (Policy):    The policy to query throughout the episode
         count (int):        The number of episodes to record and save
@@ -133,62 +128,43 @@ class SinglePlayerEnvHandler:
         str:                Path to the newly recorded gif
     '''
     def record_episodes(self, policy: Policy, count: int, train_step: int) -> str:
-        record_path = os.path.join(Config.instance_save_folder(self.config.name, self.config.instance), RECORDING_DIR)
-        step_id = f"step-{train_step}"
-        #wrapped_env = gym.wrappers.RecordVideo(self.env, record_path, episode_trigger = lambda x: True, name_prefix = f"step-{train_step}")
-        wrapped_env = gym.wrappers.Monitor(self.env, record_path, video_callable = lambda x: True, uid = step_id, resume = True)
+        # Import here, so any import errors can be avoided by disabling recording
+        # os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg" # Bugfix for linux
+        from moviepy.editor import VideoFileClip, concatenate_videoclips
         
-        for i in trange(count, leave = False):
-            self.run_episode(policy, wrapped_env)
+        with TemporaryDirectory() as record_dir:
+            step_id = f"step-{train_step}"
+            #wrapped_env = gym.wrappers.RecordVideo(self.env, record_path, episode_trigger = lambda x: True, name_prefix = f"step-{train_step}")
+            wrapped_env = gym.wrappers.Monitor(self.env, record_dir, video_callable = lambda x: True, uid = step_id, resume = True)
             
-        wrapped_env.close()
-            
-        # Remove unnecessary folders, and collect mp4 videos into a single gif
-        recorded_clips = []
-        recorded_clip_filepaths = [] # Save original filepaths to be deleted after use
-        for file in os.scandir(record_path):
-            # All newly created files have this prefix
-            if file.name.startswith("openaigym"):
-                # Remove stats, manifest and metadata jsons
-                if file.name.endswith(".json"):
-                    os.remove(file.path)
-                    
-                # Rename mp4 files and convert to gifs
-                if file.name.endswith(".mp4"):
+            for i in trange(count, leave = False):
+                self.run_episode(policy, wrapped_env)
+                
+            wrapped_env.close()
+                
+            # Collect mp4 videos for each episode
+            recorded_clips = []
+            for file in os.scandir(record_dir):
+                if file.name.startswith("openaigym") and file.name.endswith(".mp4"):
                     name_parts = file.name.split('.')
                     name_step_id = name_parts[3]
-                    record_it = int(name_parts[4][5:]) # Remove "video" prefix and leading 0s from number
                     
                     if name_step_id == step_id:
                         recorded_clips.append(VideoFileClip(file.path))
-                        recorded_clip_filepaths.append(file.path)
-        
-        # Combine individual episode recordings into one (concatenation)
-        final_clip = concatenate_videoclips(recorded_clips)
-        final_clip = final_clip.subclip(t_end=final_clip.duration - 1 / final_clip.fps) # bug workaround, since concatenation adds an extra frame
-        
-        # Save concatenated clips as gif in saves folder (ignored by git)
-        filename = f"{step_id}.gif"
-        saves_filepath = os.path.join(record_path, filename)
-        final_clip.write_gif(saves_filepath)
-        
-        # Delete original mp4 episode recordings (now that they've been rewritten)
-        final_clip.close()
-        for clip in recorded_clips:
-            clip.close()
-        for clip_filepath in recorded_clip_filepaths:
-            os.remove(clip_filepath)
-        
-        # Copy latest recording to example folder (synced with git, only contains most recent recording)
-        instance_example_folder = Config.instance_example_folder(self.config.name, self.config.instance)
-        os.makedirs(instance_example_folder, exist_ok = True)
-        for file in os.scandir(instance_example_folder):
-            os.remove(file.path)
             
-        examples_filepath = os.path.join(instance_example_folder, filename)
-        shutil.copyfile(saves_filepath, examples_filepath)
-                
-        return saves_filepath
+            # Combine individual episode recordings into one (concatenation)
+            final_clip = concatenate_videoclips(recorded_clips)
+            final_clip = final_clip.subclip(t_end=final_clip.duration - 1 / final_clip.fps) # bug workaround, since concatenation adds an extra frame
+            
+            # Save concatenated clips as gif in checkpoint folder
+            recording_filepath = os.path.join(Config.checkpoint_folder(), "recording.gif")
+            final_clip.write_gif(recording_filepath)
+            
+            final_clip.close()
+            for clip in recorded_clips:
+                clip.close()
+                                
+        return recording_filepath
     
     
     

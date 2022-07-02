@@ -18,7 +18,7 @@ class ExpBuffer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def load(self, folder: Optional[str] = None) -> None:
+    def load(self) -> None:
         raise NotImplementedError
 
 
