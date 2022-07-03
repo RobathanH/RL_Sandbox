@@ -269,6 +269,63 @@ def get_config(name: str) -> Config:
                 entropy_loss_constant = 1e-5
             )
         )
+
+    if name == "walker_cont.a2c.2":
+        from env_handler.singleplayer_env_handler import SinglePlayerEnvHandler_Config
+        from env_handler.env_format import ContinuousActionSpace
+        from exp_buffer.td_exp_buffer import TDExpBuffer_Config
+        from trainer.actor_critic import ActorCritic_Config
+        from function_approximator.basic_networks import MLP, MultiheadModule
+        from function_approximator.activation import Activation
+        from util.schedule import Constant
+        
+        return Config(
+            name = name,
+            env_handler = SinglePlayerEnvHandler_Config(
+                name = "BipedalWalker-v3",
+                action_space = ContinuousActionSpace(
+                    shape = [4],
+                    lower_bound = np.array([-1, -1, -1, -1]),
+                    upper_bound = np.array([1, 1, 1, 1])
+                ),
+                observation_space = [24],
+                time_limit_counts_as_terminal_state = False
+            ),
+            exp_buffer = TDExpBuffer_Config(
+                capacity = 10000,
+                td_steps = 8
+            ),
+            trainer = ActorCritic_Config(
+                policy_network_architecture = MultiheadModule(
+                    shared_module = MLP(
+                        layer_sizes = [24, 128, 512, 128, 32],
+                        activation = Activation.TANH,
+                        final_layer_activation = True
+                    ),
+                    head_modules = (
+                        MLP(
+                            layer_sizes = [32, 4],
+                            bounded_output = [-1, 1]
+                        ),
+                        MLP(
+                            layer_sizes = [32, 4],
+                            bounded_output = [-1, 1]
+                        )
+                    )
+                ),
+                v_network_architecture = MLP(
+                    layer_sizes = [24, 128, 512, 128, 32, 1],
+                    activation = Activation.TANH
+                ),
+                epochs_per_step = 1,
+                episodes_per_step = 1,
+                optimizer = RMSprop,
+                learning_rate = Constant(1e-4),
+                weight_decay = 1e-5,
+                soft_target_update_fraction = 1e-2,
+                entropy_loss_constant = 1e-5
+            )
+        )
         
     '''
     Atari Space Invaders

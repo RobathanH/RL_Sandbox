@@ -1,0 +1,50 @@
+program: main.py
+project: RL_Sandbox
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "walker_cont.a2c.2"
+  - "new"
+  - "-t"
+  - "800"
+  - "--disable_recording"
+  - "--overrides"
+  - ${args_json}
+method: bayes
+metric:
+  goal: maximize
+  name: episode_reward
+parameters:
+  __value__.env_handler.__value__.discount_rate:
+    max: 1
+    min: 0.95
+    distribution: uniform
+  __value__.exp_buffer.__value__.td_steps:
+    max: 10
+    min: 1
+    distribution: int_uniform
+  __value__.trainer.__value__.soft_target_update_fraction:
+    max: 1.0e-1
+    min: 1.0e-3
+    distribution: log_uniform_values
+  __value__.trainer.__value__.entropy_loss_constant:
+    max: 1.0e-1
+    min: 1.0e-6
+    distribution: log_uniform_values
+  __value__.trainer.__value__.weight_decay:
+    max: 1.0e-1
+    min: 1.0e-6
+    distribution: log_uniform_values
+  __value__.trainer.__value__.learning_rate.__value__.val:
+    max: 1.0e-2
+    min: 1.0e-6
+    distribution: log_uniform_values
+  __value__.trainer.__value__.episodes_per_step:
+    max: 10
+    min: 1
+    distribution: int_uniform
+  __value__.trainer.__value__.epochs_per_step:
+    max: 6
+    min: 1
+    distribution: int_uniform
