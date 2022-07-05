@@ -321,6 +321,16 @@ class ActorCritic(Trainer):
         with open(state_savepath, 'r') as fp:
             state = json.load(fp)
         self.train_step = state['train_step']
+        
+        
+        
+    # Logging Setup
+    
+    '''
+    Returns a list of the trainable pytorch modules used (for logging)
+    '''
+    def get_trainable_modules(self) -> list[nn.Module]:
+        return [self.policy_network, self.v_network]
 
 
 

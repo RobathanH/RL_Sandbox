@@ -234,6 +234,16 @@ class QLearning(Trainer):
             state = json.load(fp)
         self.train_step = state['train_step']
         
+    
+    
+    # Logging Setup
+    
+    '''
+    Returns a list of the trainable pytorch modules used (for logging)
+    '''
+    def get_trainable_modules(self) -> list[nn.Module]:
+        return [self.q_net]
+        
         
         
     # HELPER FUNCTIONS - Helpful to override in subclasses

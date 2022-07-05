@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Type
+import torch.nn as nn
 
 from exp_buffer.exp_format import Trajectory
 from exp_buffer.exp_buffer import ExpBuffer
@@ -65,6 +66,17 @@ class Trainer(ABC):
 
     @abstractmethod
     def load(self) -> None:
+        raise NotImplementedError
+    
+    
+    
+    # Logging Setup
+    
+    '''
+    Returns a list of the trainable pytorch modules used (for logging)
+    '''
+    @abstractmethod
+    def get_trainable_modules(self) -> list[nn.Module]:
         raise NotImplementedError
     
     

@@ -44,6 +44,9 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
         exp_buffer.load()
     trainer.load()
     
+    # Setup wandb pytorch module watching
+    wandb.watch(trainer.get_trainable_modules(), log="all", log_freq=1)
+    
     '''
     Experiment/Training Loop
     '''
