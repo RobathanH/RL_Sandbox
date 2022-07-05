@@ -6,7 +6,7 @@ from enum import Enum
 from re import T
 from typing import Optional, Type, Union, Tuple
 import numpy as np
-from tqdm import trange
+from tqdm import trange, tqdm
 
 import torch
 import torch.nn as nn
@@ -226,8 +226,9 @@ class ActorCritic(Trainer):
             print(f" log_var: {torch.min(log_var).item()}, {torch.max(log_var).item()}")
             '''
             
-            minibatch_iterator = trange(0, len(exp), self.trainer_config.minibatch_size, leave = False)
-            for i in minibatch_iterator:
+            minibatch_pbar = tqdm(total=len(exp), leave=False)
+            i = 0
+            while i < len(exp):
                 exp_minibatch = exp[i : i + self.trainer_config.minibatch_size]
                 
                 # Compute loss gradients
@@ -251,10 +252,14 @@ class ActorCritic(Trainer):
                 # Update displayed batch MSE
                 epoch_policy_loss += minibatch_mean_policy_loss.item() * self.trainer_config.minibatch_size
                 epoch_v_loss += minibatch_mean_v_loss.item() * self.trainer_config.minibatch_size
-                minibatch_iterator.set_postfix({
+                minibatch_pbar.set_postfix({
                     "Batch Policy Loss": epoch_policy_loss / (i + self.trainer_config.minibatch_size),
                     "Batch V Loss": epoch_v_loss / (i + self.trainer_config.minibatch_size)
                 })
+                
+                # Increment
+                i += len(exp_minibatch)
+                minibatch_pbar.update(len(exp_minibatch))
                 
             # Accumulate loss over epochs
             total_policy_loss += epoch_policy_loss

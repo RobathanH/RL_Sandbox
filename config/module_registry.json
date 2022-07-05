@@ -66,5 +66,6 @@
   "ConfigDecoder": "config.config_io",
   "ConfigEncoder": "config.config_io",
   "TemporaryDirectory": "tempfile",
-  "ByteUnpacker": "env_transform.observation_byte_unpacker"
+  "ByteUnpacker": "env_transform.observation_byte_unpacker",
+  "tqdm": "tqdm.std"
 }

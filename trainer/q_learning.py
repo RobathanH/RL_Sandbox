@@ -3,7 +3,7 @@ import os
 from typing import List, Optional, Type, Any
 import numpy as np
 import json
-from tqdm import trange
+from tqdm import trange, tqdm
 
 import torch
 import torch.nn as nn
@@ -162,8 +162,9 @@ class QLearning(Trainer):
             # Collect batch of exp
             exp = exp_buffer.get(count = aligned_batch_size)
             
-            minibatch_iterator = trange(0, len(exp), self.trainer_config.minibatch_size, leave = False)
-            for i in minibatch_iterator:
+            minibatch_pbar = tqdm(total=len(exp), leave=False)
+            i = 0
+            while i < len(exp):
                 exp_minibatch = exp[i : i + self.trainer_config.minibatch_size]
 
                 s = torch.from_numpy(np.array([e.state for e in exp_minibatch])).type(torch.float32).to(DEVICE)
@@ -185,7 +186,11 @@ class QLearning(Trainer):
                 
                 # Update displayed batch MSE
                 epoch_loss += minibatch_mean_loss.item() * self.trainer_config.minibatch_size
-                minibatch_iterator.set_postfix({"Batch MSE": epoch_loss / (i + self.trainer_config.minibatch_size)})
+                minibatch_pbar.set_postfix({"Batch MSE": epoch_loss / (i + self.trainer_config.minibatch_size)})
+                
+                # Increment
+                i += len(exp_minibatch)
+                minibatch_pbar.update(len(exp_minibatch))
                 
             # Accumulate loss over epochs
             total_loss += epoch_loss
