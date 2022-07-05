@@ -86,7 +86,8 @@ class SinglePlayerEnvHandler:
         traj.add_start(obs)
         steps_taken = 0
         episode_done = False
-        while not episode_done and (self.env_handler_config.max_episode_steps is None or steps_taken < self.env_handler_config.max_episode_steps):
+        custom_timelimit_reached = False
+        while not (episode_done or custom_timelimit_reached):
             action = policy.get_action(obs)
             if self.env_handler_config.action_transform is None:
                 env_action = action
@@ -98,12 +99,27 @@ class SinglePlayerEnvHandler:
                 next_obs = env_next_obs
             else:
                 next_obs = self.env_handler_config.observation_transform.from_env(env_next_obs)
-                
-            if not self.env_handler_config.time_limit_counts_as_terminal_state:
-                # Do not mark trajectory steps as 'done' if episode is ended by a timelimit, otherwise env is not MDP
-                trajectory_done = episode_done and not ("TimeLimit.truncated" in info and info["TimeLimit.truncated"])
+            
+            
+            
+            # Marks that custom config-set timelimit has been reached
+            # This implies that we are about to force the episode to end (regardless of episode_done)
+            custom_timelimit_reached = (
+                self.env_handler_config.max_episode_steps is not None and
+                steps_taken >= self.env_handler_config.max_episode_steps - 1
+            )
+            
+            if self.env_handler_config.time_limit_counts_as_terminal_state:
+                trajectory_done = episode_done or custom_timelimit_reached
             else:
-                trajectory_done = episode_done or ("TimeLimit.truncated" in info and info["TimeLimit.truncated"])
+                # Do not mark trajectory steps as 'done' if episode is ended by a timelimit, otherwise env is not MDP
+                # This info key marks that [episode_done = True] because of a timelimit
+                # Not given when [episode_done = False]
+                builtin_timelimit_reached = (
+                    "TimeLimit.truncated" in info and
+                    info["TimeLimit.truncated"]
+                )
+                trajectory_done = episode_done and not builtin_timelimit_reached                
             
             traj.add_step(action, reward, next_obs, trajectory_done)
             steps_taken += 1
@@ -138,8 +154,9 @@ class SinglePlayerEnvHandler:
             batch_trajectories[i].add_start(batch_obs[i])
             
         steps_taken = 0
-        batch_trajectories_complete = [False for _ in range(count)]
-        while not all(batch_trajectories_complete) and (self.env_handler_config.max_episode_steps is None or steps_taken < self.env_handler_config.max_episode_steps):
+        batch_episode_done_occurred = [False for _ in range(count)]
+        custom_timelimit_reached = False
+        while not (all(batch_episode_done_occurred) or custom_timelimit_reached):
             batch_actions = batch_policy.get_action(batch_obs)
             
             # Postprocess action before sending to env
@@ -162,30 +179,37 @@ class SinglePlayerEnvHandler:
                     for env_next_obs in batch_env_next_obs
                 ], axis=0)
                 
+            # Marks that custom config-set timelimit has been reached
+            # This implies that we are about to force the episode to end (regardless of episode_done)
+            custom_timelimit_reached = (
+                self.env_handler_config.max_episode_steps is not None and
+                steps_taken >= self.env_handler_config.max_episode_steps - 1
+            )
+            
+            # Check which episodes have completed
+            batch_episode_done_occurred = [batch_episode_done_occurred[i] or batch_episode_done[i] for i in range(count)]
+                
             # Add step to trajectories
             for i in range(count):
                 # If this index has already run a full episode and reset, do not save further partial episodes
-                if batch_trajectories_complete[i]:
+                if batch_episode_done_occurred[i]:
                     continue
                 
-                episode_done = batch_episode_done[i]
-                timelimit_truncated = (
-                    "TimeLimit.truncated" in batch_info and
-                    "_TimeLimit.truncated" in batch_info and
-                    batch_info["_TimeLimit.truncated"][i] and
-                    batch_info["TimeLimit.truncated"][i]
-                )
-                if not self.env_handler_config.time_limit_counts_as_terminal_state:
-                    # Do not mark trajectory steps as 'done' if episode is ended by a timelimit, otherwise env is not MDP
-                    trajectory_done = episode_done and not timelimit_truncated
+                if self.env_handler_config.time_limit_counts_as_terminal_state:
+                    trajectory_done = batch_episode_done[i] or custom_timelimit_reached
                 else:
-                    trajectory_done = episode_done or timelimit_truncated
+                    # Do not mark trajectory steps as 'done' if episode is ended by a timelimit, otherwise env is not MDP
+                    # This info key marks that [episode_done = True] because of a timelimit
+                    # Not given when [episode_done = False]
+                    builtin_timelimit_reached = (
+                        "TimeLimit.truncated" in batch_info and
+                        "_TimeLimit.truncated" in batch_info and
+                        batch_info["_TimeLimit.truncated"][i] and
+                        batch_info["TimeLimit.truncated"][i]
+                    )
+                    trajectory_done = batch_episode_done[i] and not builtin_timelimit_reached   
                     
                 batch_trajectories[i].add_step(batch_actions[i], batch_rewards[i], batch_next_obs[i], trajectory_done)
-                
-                # Mark batch elements which have completed a full trajectory
-                if trajectory_done:
-                    batch_trajectories_complete[i] = True
                     
             # Increment
             steps_taken += 1
