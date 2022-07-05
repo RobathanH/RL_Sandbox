@@ -235,7 +235,7 @@ class SinglePlayerEnvHandler:
             
             # Save concatenated clips as gif in checkpoint folder
             recording_filepath = os.path.join(Config.checkpoint_folder(), "recording.gif")
-            final_clip.write_gif(recording_filepath)
+            final_clip.write_gif(recording_filepath, loop=True)
             
             final_clip.close()
             for clip in recorded_clips:
