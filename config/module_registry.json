@@ -65,5 +65,6 @@
   "VideoFileClip": "moviepy.video.io.VideoFileClip",
   "ConfigDecoder": "config.config_io",
   "ConfigEncoder": "config.config_io",
-  "TemporaryDirectory": "tempfile"
+  "TemporaryDirectory": "tempfile",
+  "ByteUnpacker": "env_transform.observation_byte_unpacker"
 }

@@ -1,0 +1,41 @@
+program: main.py
+project: RL_Sandbox
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "space_invaders_ram.ddqn.1"
+  - "-t"
+  - "400"
+  - "--disable_recording"
+  - "--overrides"
+  - ${args_json}
+method: bayes
+metric:
+  goal: maximize
+  name: episode_reward
+parameters:
+  __value__.env_handler.__value__.discount_rate:
+    max: 1
+    min: 0.9
+    distribution: uniform
+  __value__.trainer.__value__.soft_target_update_fraction:
+    max: 0.5
+    min: 0.001
+    distribution: log_uniform_values
+  __value__.trainer.__value__.epsilon_schedule.__value__.start:
+    max: 1
+    min: 0.25
+    distribution: uniform
+  __value__.trainer.__value__.epsilon_schedule.__value__.duration:
+    max: 5000
+    min: 50
+    distribution: uniform
+  __value__.trainer.__value__.learning_rate.__value__.val:
+    max: 1.0e-2
+    min: 1.0e-5
+    distribution: log_uniform_values
+  __value__.trainer.__value__.weight_decay:
+    max: 1.0e-2
+    min: 1.0e-5
+    distribution: log_uniform_values

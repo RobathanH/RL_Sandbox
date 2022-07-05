@@ -337,7 +337,7 @@ def get_config(name: str) -> Config:
         from exp_buffer.td_exp_buffer import TDExpBuffer_Config
         from trainer.double_q_learning import DoubleQLearning_Config
         from function_approximator.basic_networks import MLP
-        from util.schedule import LogarithmicSchedule
+        from util.schedule import LogarithmicSchedule, Constant
         
         return Config(
             name = name,
@@ -361,14 +361,13 @@ def get_config(name: str) -> Config:
                 ),
                 epsilon_schedule = LogarithmicSchedule(
                     start = 0.5,
-                    end = 0.01,
+                    end = 1e-3,
                     duration = 2000
                 ),
                 epochs_per_step = 2,
                 episodes_per_step = 5,
-                minibatch_size = 64,
                 optimizer = Adam,
-                learning_rate = LogarithmicSchedule(1e-4, 1e-6, 2000),
+                learning_rate = Constant(1e-4),
                 weight_decay = 1e-4
             )
         )
