@@ -1,5 +1,5 @@
 import os, json
-from dataclasses import is_dataclass
+from dataclasses import is_dataclass, fields
 import numpy as np
 from enum import Enum
 
@@ -26,7 +26,7 @@ class ConfigEncoder(json.JSONEncoder):
         
         # Encode dataclasses by their dictionary formats
         if is_dataclass(obj):
-            return dict(__type__ = "dataclass", __class__ = type(obj).__name__, __value__ = obj.__dict__)
+            return dict(__type__ = "dataclass", __class__ = type(obj).__name__, **obj.__dict__)
         
         return json.JSONEncoder.default(self, obj)
     
@@ -42,12 +42,10 @@ class ConfigDecoder(json.JSONDecoder):
         # Class instance
         if dct["__type__"] == "class":
             return GET_CLASS(dct["__class__"])
-            #return globals()[dct["__class__"]]
         
         # Enum
         if dct["__type__"] == "enum":
             class_ref = GET_CLASS(dct["__class__"])
-            #class_ref = globals()[dct["__class__"]]
             return getattr(class_ref, dct["__value__"])
         
         # Np Array
@@ -57,7 +55,11 @@ class ConfigDecoder(json.JSONDecoder):
         # Dataclass
         if dct["__type__"] == "dataclass":
             class_ref = GET_CLASS(dct["__class__"])
-            #class_ref = globals()[dct["__class__"]]
-            return class_ref(**dct["__value__"])
+            
+            # Prune dict to only dataclass fields
+            dataclass_fields = [f.name for f in fields(class_ref)]
+            dataclass_kwargs = {k: v for k, v in dct.items() if k in dataclass_fields}
+            
+            return class_ref(**dataclass_kwargs)
         
         raise ValueError(f"Unrecognized JSON-encoded config __type__: {dct}")

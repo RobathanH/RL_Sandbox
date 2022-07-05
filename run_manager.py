@@ -25,8 +25,8 @@ def load_run(config_name: str, config_instance: int) -> Config:
     runs = wandb.Api().runs(
         f"{WANDB_ENTITY_NAME}/{WANDB_PROJECT_NAME}",
         filters={
-            "config.__value__.name": config_name,
-            "config.__value__.instance": config_instance
+            "config.name": config_name,
+            "config.instance": config_instance
         }
     )
     if len(runs) == 0:
@@ -71,13 +71,13 @@ def create_run(config_name: str, config_overrides: dict = {}) -> Config:
     runs = wandb.Api().runs(
         f"{WANDB_ENTITY_NAME}/{WANDB_PROJECT_NAME}",
         filters={
-            "config.__value__.name": config_name
+            "config.name": config_name
         }
     )
     if len(runs) == 0:
         instance = 0
     else:
-        instance = max(run.config["__value__"]["instance"] for run in runs) + 1
+        instance = max(run.config["instance"] for run in runs) + 1
                 
     # Create new config instance
     config = base_config.create_new_instance(instance, config_overrides)
