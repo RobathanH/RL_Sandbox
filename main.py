@@ -123,13 +123,8 @@ if __name__ == '__main__':
     # Specify Config Base (required)
     argparser.add_argument("name", type=str, help="Config name to look up and use")
     
-    # Specify Action (required)
-    argparser.add_argument("action", choices=['new', 'load'], help="Action to perform with chosen base config.\n\
-        'new' creates a new instance for this config (with optional overrides), then trains.\n\
-        'load' loads saves from existing instance for this config, then trains.")
-    
-    # Specify instance index
-    argparser.add_argument("-i", "--instance", type=int, default=None, help="Instance to target. Required for 'load' action, no effect for 'new' action.")
+    # Load Existing Instance
+    argparser.add_argument("-l", "--load", type=int, default=None, help="Load an existing instance from the cloud for further training.")
     
     # Training Options
     argparser.add_argument("-t", "--train_iter", type=int, default=1, help="Number of experimentation-training loops to perform.")
@@ -153,25 +148,14 @@ if __name__ == '__main__':
     '''
     
     # Create new instance
-    if args.action == "new":
-        
+    if args.load is None:
         # Initialize wandb run and config
         config = create_run(args.name, args.overrides)
         
     # Load existing instance
-    elif args.action == "load":
-        
-        # Error if instance not specified
-        if args.instance is None:
-            raise ValueError(f"'load' action requires specified instance.")
-        
+    else: 
         # Initialize wandb run and config
-        config = load_run(args.name, args.instance)
-        
-    # Unrecognized action
-    else:
-        raise ValueError(f"Unrecognized action {args.action}")
-    
+        config = load_run(args.name, args.load)
     
     # Print config json
     print(config.to_str(indent=2))

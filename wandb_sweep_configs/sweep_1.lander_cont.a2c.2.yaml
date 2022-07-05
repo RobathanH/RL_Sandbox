@@ -5,7 +5,6 @@ command:
   - ${interpreter}
   - ${program}
   - "lander_cont.a2c.2"
-  - "new"
   - "-t"
   - "800"
   - "--disable_recording"

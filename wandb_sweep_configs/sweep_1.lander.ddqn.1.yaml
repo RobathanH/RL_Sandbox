@@ -5,7 +5,6 @@ command:
   - ${interpreter}
   - ${program}
   - "lander.ddqn.1"
-  - "new"
   - "-t"
   - "200"
   - "--disable_recording"
