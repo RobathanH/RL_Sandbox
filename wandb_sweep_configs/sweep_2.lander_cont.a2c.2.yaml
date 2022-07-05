@@ -1,0 +1,45 @@
+program: main.py
+project: RL_Sandbox
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "lander_cont.a2c.2"
+  - "-t"
+  - "800"
+  - "--disable_recording"
+  - "--overrides"
+  - ${args_json}
+method: bayes
+metric:
+  goal: maximize
+  name: episode_reward
+parameters:
+  env_handler.discount_rate:
+    max: 1
+    min: 0.9
+    distribution: uniform
+  exp_buffer.td_steps:
+    max: 10
+    min: 1
+    distribution: int_uniform
+  trainer.soft_target_update_fraction:
+    max: 1
+    min: 1.0e-3
+    distribution: log_uniform_values
+  trainer.entropy_loss_constant:
+    max: 1.0e-1
+    min: 1.0e-6
+    distribution: log_uniform_values
+  trainer.weight_decay:
+    max: 1.0e-1
+    min: 1.0e-6
+    distribution: log_uniform_values
+  trainer.learning_rate.val:
+    max: 1.0e-2
+    min: 1.0e-6
+    distribution: log_uniform_values
+  trainer.episodes_per_step:
+    value: 10
+  trainer.epochs_per_step:
+    value: 2
