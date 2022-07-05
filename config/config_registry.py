@@ -364,8 +364,8 @@ def get_config(name: str) -> Config:
                     end = 1e-3,
                     duration = 2000
                 ),
-                epochs_per_step = 2,
-                episodes_per_step = 5,
+                epochs_per_step = 1,
+                episodes_per_step = 1,
                 optimizer = Adam,
                 learning_rate = Constant(1e-4),
                 weight_decay = 1e-4

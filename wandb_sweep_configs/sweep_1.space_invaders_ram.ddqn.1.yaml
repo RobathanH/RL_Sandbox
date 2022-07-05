@@ -6,7 +6,7 @@ command:
   - ${program}
   - "space_invaders_ram.ddqn.1"
   - "-t"
-  - "400"
+  - "200"
   - "--disable_recording"
   - "--overrides"
   - ${args_json}
