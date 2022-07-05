@@ -60,20 +60,27 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
             log_dict = {}
             
             # Experience Step
+            exp_step_start = time.time()
             trajectories = env_handler.run_parallel_episodes(trainer.current_batch_policy(), config.trainer.episodes_per_step)
+            exp_step_duration = time.time() - exp_step_start
             
             # Log Experience Metrics
             log_dict["episode_reward"] = np.mean([t.total_reward() for t in trajectories])
             log_dict["episode_length"] = np.mean([t.length() for t in trajectories])
+            log_dict["exp_step_duration"] = exp_step_duration
             
             # Add Experience to Buffer
             exp_buffer.add_trajectories(trajectories)
+            log_dict["exp_buffer_size"] = exp_buffer.size()
             
             # Train Step
+            train_step_start = time.time()
             train_metrics = trainer.train(exp_buffer)
+            train_step_duration = time.time() - train_step_start
             
             # Log Train Metrics
             log_dict.update(train_metrics)
+            log_dict["train_step_duration"] = train_step_duration
                 
             # Clear exp buffer after training if on-policy
             if trainer.on_policy():
