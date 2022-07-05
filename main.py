@@ -60,7 +60,7 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
             log_dict = {}
             
             # Experience Step
-            trajectories = env_handler.run_episodes(trainer.current_policy(), config.trainer.episodes_per_step)
+            trajectories = env_handler.run_parallel_episodes(trainer.current_batch_policy(), config.trainer.episodes_per_step)
             
             # Log Experience Metrics
             log_dict["episode_reward"] = np.mean([t.total_reward() for t in trajectories])

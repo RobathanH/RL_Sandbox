@@ -24,6 +24,16 @@ class Trainer(ABC):
         raise NotImplementedError
     
     '''
+    Returns the current trained policy, in batch format.
+    Takes batches of observations, returns batches of actions
+    Returns:
+        (Policy)
+    '''
+    @abstractmethod
+    def current_batch_policy(self) -> Policy:
+        raise NotImplementedError
+    
+    '''
     Returns the current training step (Number of training loops completed).
     Returns:
         (int)

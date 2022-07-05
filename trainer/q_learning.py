@@ -16,7 +16,7 @@ from env_handler.singleplayer_env_handler import SinglePlayerEnvHandler_Config
 from exp_buffer.exp_buffer import ExpBuffer
 from exp_buffer.td_exp_buffer import TDExpBuffer_Config
 from function_approximator.function_approximator import FunctionApproximator
-from policy.function_policy import Policy, EpsilonGreedyFunctionPolicy
+from policy.function_policy import FunctionPolicy, Policy, EpsilonGreedyFunctionPolicy
 from util.schedule import Schedule, Constant, LogarithmicSchedule
 
 from .trainer import Trainer, Trainer_Config
@@ -115,15 +115,40 @@ class QLearning(Trainer):
 
         # Define policy function which takes an observation and returns an integer action index
         def policyFunction(observation) -> int:
-            observation = torch.from_numpy(observation).type(torch.float32).to(DEVICE)
-            q = self.q_net(observation)
-            return int(torch.argmax(q))
+            with torch.no_grad():
+                observation = torch.from_numpy(observation).type(torch.float32).to(DEVICE)
+                q = self.q_net(observation)
+                return int(torch.argmax(q))
 
         return EpsilonGreedyFunctionPolicy(
             policyFunction,
             self.trainer_config.epsilon_schedule.value(self.train_step),
             lambda: np.random.choice(self.config.env_handler.action_space.count)
         )
+        
+    '''
+    Returns the current trained policy, in batch format.
+    Takes batches of observations, returns batches of actions
+    Returns:
+        (Policy)
+    '''
+    def current_batch_policy(self) -> Policy:
+        # Define policy function, including random action chance
+        def policyFunction(batch_observation: np.array) -> np.array:
+            with torch.no_grad():
+                batch_input = torch.from_numpy(batch_observation).type(torch.float32).to(DEVICE)
+                batch_q = self.q_net(batch_input)
+                batch_actions = torch.argmax(batch_q, dim=-1).cpu().numpy()
+                
+                # Random action chance
+                eps = self.trainer_config.epsilon_schedule.value(self.train_step)
+                batch_take_random_action = np.random.uniform(size=batch_actions.shape) < eps
+                batch_random_actions = np.random.choice(self.config.env_handler.action_space.count, size=batch_actions.shape)
+                
+                batch_actions = np.where(batch_take_random_action, batch_random_actions, batch_actions)
+                return batch_actions
+            
+        return FunctionPolicy(policyFunction)
 
     '''
     Returns the current training step (Number of training loops completed).

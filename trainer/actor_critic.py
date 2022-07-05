@@ -180,6 +180,38 @@ class ActorCritic(Trainer):
         return FunctionPolicy(policyFunction)
     
     '''
+    Returns the current trained policy, in batch format.
+    Takes batches of observations, returns batches of actions
+    Returns:
+        (Policy)
+    '''
+    def current_batch_policy(self) -> Policy:
+        def policyFunction(batch_observation: np.ndarray) -> np.ndarray:
+            with torch.no_grad():
+                batch_observation = torch.from_numpy(batch_observation).type(torch.float32).to(DEVICE)
+                if self.action_type is ActionType.DISCRETE:
+                    batch_action_logits = self.policy_network(batch_observation)
+                    
+                    batch_dist = torch.distributions.Categorical(logits = batch_action_logits)
+                    batch_action = batch_dist.sample().cpu().numpy()
+                    
+                elif self.action_type is ActionType.CONTINUOUS:
+                    batch_mean, batch_log_var = self.policy_network(batch_observation)
+                    
+                    batch_action = []
+                    for i in range(len(batch_observation)):
+                        dist = torch.distributions.MultivariateNormal(batch_mean[i], torch.diag(torch.exp(batch_log_var[i])))
+                        action = dist.sample().cpu().numpy()
+                        action = np.clip(action, self.config.env_handler.action_space.lower_bound, self.config.env_handler.action_space.upper_bound)
+                        batch_action.append(action[None])
+                    batch_action = np.concatenate(batch_action, axis=0)
+                else:
+                    raise ValueError(f"Missing policy function for action type: {self.action_type.name}")
+                return batch_action
+        
+        return FunctionPolicy(policyFunction)
+    
+    '''
     Returns the current training step (Number of training loops completed).
     Returns:
         (int)

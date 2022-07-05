@@ -117,6 +117,83 @@ class SinglePlayerEnvHandler:
             trajectories.append(self.run_episode(policy))
         return trajectories
     
+    def run_parallel_episodes(self, batch_policy: Policy, count: int) -> list[Trajectory]:
+        env = gym.vector.make(self.env_handler_config.name, num_envs=count)
+        
+        batch_trajectories = [Trajectory() for _ in range(count)]
+        
+        batch_env_obs = env.reset()
+            
+        # Preprocess raw observations from env
+        if self.env_handler_config.observation_transform is None:
+            batch_obs = batch_env_obs
+        else:
+            batch_obs = np.concatenate([
+                self.env_handler_config.observation_transform.from_env(env_obs)[None]
+                for env_obs in batch_env_obs
+            ], axis=0)
+                
+        # Add to trajectories
+        for i in range(count):
+            batch_trajectories[i].add_start(batch_obs[i])
+            
+        steps_taken = 0
+        batch_trajectories_complete = [False for _ in range(count)]
+        while not all(batch_trajectories_complete) and (self.env_handler_config.max_episode_steps is None or steps_taken < self.env_handler_config.max_episode_steps):
+            batch_actions = batch_policy.get_action(batch_obs)
+            
+            # Postprocess action before sending to env
+            if self.env_handler_config.action_transform is None:
+                batch_env_actions = batch_actions
+            else:
+                batch_env_actions = np.concatenate([
+                    self.env_handler_config.action_transform.to_env(action)[None]
+                    for action in batch_actions
+                ], axis=0)
+                
+            batch_env_next_obs, batch_rewards, batch_episode_done, batch_info = env.step(batch_env_actions)
+            
+            # Preprocess raw observations from env
+            if self.env_handler_config.observation_transform is None:
+                batch_next_obs = batch_env_next_obs
+            else:
+                batch_next_obs = np.concatenate([
+                    self.env_handler_config.observation_transform.from_env(env_next_obs)[None]
+                    for env_next_obs in batch_env_next_obs
+                ], axis=0)
+                
+            # Add step to trajectories
+            for i in range(count):
+                # If this index has already run a full episode and reset, do not save further partial episodes
+                if batch_trajectories_complete[i]:
+                    continue
+                
+                episode_done = batch_episode_done[i]
+                timelimit_truncated = (
+                    "TimeLimit.truncated" in batch_info and
+                    "_TimeLimit.truncated" in batch_info and
+                    batch_info["_TimeLimit.truncated"][i] and
+                    batch_info["TimeLimit.truncated"][i]
+                )
+                if not self.env_handler_config.time_limit_counts_as_terminal_state:
+                    # Do not mark trajectory steps as 'done' if episode is ended by a timelimit, otherwise env is not MDP
+                    trajectory_done = episode_done and not timelimit_truncated
+                else:
+                    trajectory_done = episode_done or timelimit_truncated
+                    
+                batch_trajectories[i].add_step(batch_actions[i], batch_rewards[i], batch_next_obs[i], trajectory_done)
+                
+                # Mark batch elements which have completed a full trajectory
+                if trajectory_done:
+                    batch_trajectories_complete[i] = True
+                    
+            # Increment
+            steps_taken += 1
+            batch_obs = batch_next_obs
+            
+        return batch_trajectories
+                    
+    
     '''
     Records example episodes under the given policy, saving them as a concatenated gif (converted from default mp4 format).
     The resulting gif is saved in the checkpoint folder, overwriting any previous recordings.
