@@ -178,8 +178,9 @@ class QLearning(Trainer):
         total_loss = 0
         
         # Set learning rate for this train step
+        lr = self.trainer_config.learning_rate.value(self.train_step)
         for g in self.optimizer.param_groups:
-            g['lr'] = self.trainer_config.learning_rate.value(self.train_step)
+            g['lr'] = lr
         
         for epoch in trange(self.trainer_config.epochs_per_step, leave = False):
             epoch_loss = 0 # Accumulate total square error over single epoch
@@ -225,7 +226,10 @@ class QLearning(Trainer):
             
         # Return metrics
         train_mse = total_loss / (aligned_batch_size * self.trainer_config.epochs_per_step)
-        return {"value_loss": train_mse}
+        return {
+            "value_loss": train_mse,
+            "learning_rate": lr
+        }
 
     
 

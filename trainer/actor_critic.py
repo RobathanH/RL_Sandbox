@@ -241,8 +241,9 @@ class ActorCritic(Trainer):
         total_v_loss = 0
         
         # Set learning rate for this train step
+        lr = self.trainer_config.learning_rate.value(self.train_step)
         for g in self.optimizer.param_groups:
-            g['lr'] = self.trainer_config.learning_rate.value(self.train_step)
+            g['lr'] = lr
         
         for epoch in trange(self.trainer_config.epochs_per_step, leave = False):
             # Accumulate total square error over single epoch
@@ -305,7 +306,8 @@ class ActorCritic(Trainer):
         train_v_loss = total_v_loss / (aligned_batch_size * self.trainer_config.epochs_per_step)
         return {
             "policy_loss": train_policy_loss,
-            "value_loss": train_v_loss
+            "value_loss": train_v_loss,
+            "learning_rate": lr
         }
         
     '''

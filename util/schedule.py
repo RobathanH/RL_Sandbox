@@ -75,8 +75,33 @@ class LogarithmicSchedule(Schedule):
     '''
     def value(self, step: int = 0) -> float:
         lin_schedule = LinearSchedule(np.log(self.start), np.log(self.end), np.log(self.duration))
-        return np.exp(lin_schedule.value(step))    
+        return np.exp(lin_schedule.value(step))
     
+'''
+Effectively the same as LogarithmicSchedule, but
+with different parameters which are less dependent on
+each other (better for hyperparameter sweeps)
+'''
+@dataclass
+class LogarithmicDecaySchedule(Schedule):
+    start: float            # Initial value
+    end: float              # Minimum value, after which decay stops
+    decay: float            # Decay multiplier per step
+    
+    '''
+    Retrieve the current value of the variable under the schedule.
+    Args:
+        step (int):     Current step index.
+    Returns:
+        (float)
+    '''
+    def value(self, step: int = 0) -> float:
+        log_schedule = LogarithmicSchedule(
+            start = self.start,
+            end = self.end,
+            duration = (np.log(self.start) - np.log(self.end)) // np.log(self.decay)
+        )
+        return log_schedule.value(step)
     
 # Register for importing
 from config.module_importer import REGISTER_MODULE
