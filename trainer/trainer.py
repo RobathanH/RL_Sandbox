@@ -71,11 +71,11 @@ class Trainer(ABC):
     # Loading and Saving
 
     @abstractmethod
-    def save(self) -> None:
+    def save(self, filename_prefix: str = "") -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def load(self) -> None:
+    def load(self, filename_prefix: str = "") -> bool:
         raise NotImplementedError
     
     

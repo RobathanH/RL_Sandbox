@@ -319,11 +319,11 @@ class ActorCritic(Trainer):
     
     # Loading and Saving
 
-    def save(self) -> None:
-        policy_network_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
-        v_network_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_V_NETWORK_SAVENAME)
-        v_target_network_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_STATE_SAVENAME)
+    def save(self, filename_prefix: str = "") -> None:
+        policy_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
+        v_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_V_NETWORK_SAVENAME)
+        v_target_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_STATE_SAVENAME)
         
         # Save network weights
         torch.save(self.policy_network.state_dict(), policy_network_savepath)
@@ -337,17 +337,17 @@ class ActorCritic(Trainer):
         with open(state_savepath, 'w') as fp:
             json.dump(state, fp, indent=2)
 
-    def load(self) -> None:
-        policy_network_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
-        v_network_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_V_NETWORK_SAVENAME)
-        v_target_network_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(Config.checkpoint_folder(), ACTOR_CRITIC_STATE_SAVENAME)
+    def load(self, filename_prefix: str = "") -> bool:
+        policy_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_POLICY_NETWORK_SAVENAME)
+        v_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_V_NETWORK_SAVENAME)
+        v_target_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_V_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + ACTOR_CRITIC_STATE_SAVENAME)
         
         if not os.path.exists(policy_network_savepath) or \
             not os.path.exists(v_network_savepath) or \
             not os.path.exists(v_target_network_savepath) or \
             not os.path.exists(state_savepath):
-            return
+            return False
         
         # Load network weights
         self.policy_network.load_state_dict(torch.load(policy_network_savepath))
@@ -358,6 +358,8 @@ class ActorCritic(Trainer):
         with open(state_savepath, 'r') as fp:
             state = json.load(fp)
         self.train_step = state['train_step']
+        
+        return True
         
         
         

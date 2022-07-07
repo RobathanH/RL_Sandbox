@@ -231,10 +231,10 @@ class QLearning(Trainer):
 
     # Loading and Saving
 
-    def save(self) -> None:
-        network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_NETWORK_SAVENAME)
-        target_network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_STATE_SAVENAME)
+    def save(self, filename_prefix: str = "") -> None:
+        network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + Q_LEARNING_NETWORK_SAVENAME)
+        target_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + Q_LEARNING_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + Q_LEARNING_STATE_SAVENAME)
         
         # Save network weights
         torch.save(self.q_net.state_dict(), network_savepath)
@@ -247,13 +247,13 @@ class QLearning(Trainer):
         with open(state_savepath, 'w') as fp:
             json.dump(state, fp, indent=2)
 
-    def load(self) -> None:
-        network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_NETWORK_SAVENAME)
-        target_network_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_TARGET_NETWORK_SAVENAME)
-        state_savepath = os.path.join(Config.checkpoint_folder(), Q_LEARNING_STATE_SAVENAME)
+    def load(self, filename_prefix: str = "") -> bool:
+        network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + Q_LEARNING_NETWORK_SAVENAME)
+        target_network_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + Q_LEARNING_TARGET_NETWORK_SAVENAME)
+        state_savepath = os.path.join(Config.checkpoint_folder(), filename_prefix + Q_LEARNING_STATE_SAVENAME)
         
         if not os.path.exists(network_savepath) or not os.path.exists(target_network_savepath) or not os.path.exists(state_savepath):
-            return
+            return False
         
         # Load network weights
         self.q_net.load_state_dict(torch.load(network_savepath))
@@ -263,6 +263,8 @@ class QLearning(Trainer):
         with open(state_savepath, 'r') as fp:
             state = json.load(fp)
         self.train_step = state['train_step']
+        
+        return True
         
     
     

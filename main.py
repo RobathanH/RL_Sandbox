@@ -21,6 +21,8 @@ PERIODIC_RECORD_TIME = 5 # Minutes between triggering new policy recording
 PERIODIC_RECORD_EPISODE_COUNT = 3 # Number of episodes to record at each periodic record trigger
 PERIODIC_SAVE_TIME = 10 # Minutes between saving training state
 
+BEST_POLICY_FILENAME_PREFIX = "best_"
+
 
 '''
 Core training function.
@@ -69,6 +71,12 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
             log_dict["episode_length"] = np.mean([t.length() for t in trajectories])
             log_dict["exp_step_duration"] = exp_step_duration
             
+            # Save best model
+            best_reward = wandb.run.summary.get("best_episode_reward")
+            if best_reward is None or log_dict["episode_reward"] > best_reward:
+                wandb.run.summary["best_episode_reward"] = log_dict["episode_reward"]
+                trainer.save(BEST_POLICY_FILENAME_PREFIX)
+            
             # Add Experience to Buffer
             exp_buffer.add_trajectories(trajectories)
             log_dict["exp_buffer_size"] = exp_buffer.size()
@@ -86,7 +94,7 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
             if trainer.on_policy():
                 exp_buffer.clear()
             
-            # Save after each training step
+            # Save state periodically
             if time.time() - last_save_time >= PERIODIC_SAVE_TIME * 60:
                 if not trainer.on_policy():
                     exp_buffer.save()
