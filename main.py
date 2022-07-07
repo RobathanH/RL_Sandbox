@@ -123,6 +123,12 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
             recording_path = env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step())
             log_dict["recording"] = wandb.Video(recording_path, format="gif")
             wandb.log(log_dict)
+            
+        # Record best policy (not logged, just stored to synced file-system)
+        if record:
+            if trainer.load(BEST_POLICY_FILENAME_PREFIX):
+                env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step(), filename=BEST_POLICY_FILENAME_PREFIX)
+            
 
 
 

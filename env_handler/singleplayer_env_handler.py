@@ -222,13 +222,14 @@ class SinglePlayerEnvHandler:
     Records example episodes under the given policy, saving them as a concatenated gif (converted from default mp4 format).
     The resulting gif is saved in the checkpoint folder, overwriting any previous recordings.
     Args:
-        policy (Policy):    The policy to query throughout the episode
-        count (int):        The number of episodes to record and save
-        train_step (int):   The training iteration this policy represents, which is included in the save video names
+        policy (Policy):        The policy to query throughout the episode
+        count (int):            The number of episodes to record and save
+        train_step (int):       The training iteration this policy represents, which is included in the save video names
+        filename_prefix (str):  Prefix for output recording filename
     Returns:
-        str:                Path to the newly recorded gif
+        str:                    Path to the newly recorded gif
     '''
-    def record_episodes(self, policy: Policy, count: int, train_step: int) -> str:
+    def record_episodes(self, policy: Policy, count: int, train_step: int, filename_prefix: str = "") -> str:
         # Import here, so any import errors can be avoided by disabling recording
         # os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg" # Bugfix for linux
         from moviepy.editor import VideoFileClip, concatenate_videoclips
@@ -258,7 +259,7 @@ class SinglePlayerEnvHandler:
             final_clip = final_clip.subclip(t_end=final_clip.duration - 1 / final_clip.fps) # bug workaround, since concatenation adds an extra frame
             
             # Save concatenated clips as gif in checkpoint folder
-            recording_filepath = os.path.join(Config.checkpoint_folder(), "recording.gif")
+            recording_filepath = os.path.join(Config.checkpoint_folder(), filename_prefix + "recording.gif")
             final_clip.write_gif(recording_filepath, loop=True)
             
             final_clip.close()
