@@ -56,9 +56,10 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
         
         last_record_time = time.time()
         last_save_time = time.time()
+        log_dict = {}
         
         for i in trange(train_iterations):
-            # Dict for log info at this step
+            # Reset dict for log info at this step
             log_dict = {}
             
             # Experience Step
@@ -127,7 +128,7 @@ def train(config: Config, train_iterations: int, record: bool) -> None:
         # Record best policy (not logged, just stored to synced file-system)
         if record:
             if trainer.load(BEST_POLICY_FILENAME_PREFIX):
-                env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step(), filename=BEST_POLICY_FILENAME_PREFIX)
+                env_handler.record_episodes(trainer.current_policy(), PERIODIC_RECORD_EPISODE_COUNT, trainer.current_train_step(), filename_prefix=BEST_POLICY_FILENAME_PREFIX)
             
 
 
