@@ -41,63 +41,7 @@ class Trajectory:
         return sum(step.reward for step in self.steps)
     
     def length(self) -> int:
-        return len(self.steps)
-
-
-
-'''
-s,a,r,s' exp type
-If next_state is None, tuple is assumed to have reached end of episode (done = True)
-'''
-@dataclass
-class ExpSars:
-    state: Any
-    action: Any
-    reward: float
-    next_state: Optional[Any] = None
-
-    def done(self) -> bool:
-        return self.next_state is None
-
-'''
-s,a,r,s',a' tuple type
-If next_state and/or next_action is None, tuple is assumed to have reached end of episode (done = True)
-'''
-@dataclass
-class ExpSarsa:
-    state: Any
-    action: Any
-    reward: float
-    next_state: Optional[Any] = None
-    next_action: Optional[Any] = None
-
-    def done(self) -> bool:
-        return self.next_state is None or self.next_action is None
-
-'''
-Full return tuple type, for Monte-Carlo estimators
-'''
-@dataclass
-class ExpMC:
-    state: Any
-    action: Any
-    returns: float
-    
-'''
-Tuple type for Variable TD levels. Can represent both ExpSars and ExpMC
-Stores state-action tuple and discounted rewards over the next n actions,
-as well as the final next state for bootstrapping if not done.
-'''
-@dataclass
-class ExpTD:
-    state: Any
-    action: Any
-    reward: float
-    next_state: Optional[Any] = None
-    
-    def done(self) -> bool:
-        return self.next_state is None    
-    
+        return len(self.steps)    
     
 # Register for importing
 from config.module_importer import REGISTER_MODULE

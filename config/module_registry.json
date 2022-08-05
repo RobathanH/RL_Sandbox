@@ -4,7 +4,7 @@
   "ExpMC": "exp_buffer.exp_format",
   "ExpSars": "exp_buffer.exp_format",
   "ExpSarsa": "exp_buffer.exp_format",
-  "ExpTD": "exp_buffer.exp_format",
+  "ExpTD": "exp_buffer.td_exp_buffer",
   "Trajectory": "exp_buffer.exp_format",
   "ExpBuffer": "exp_buffer.exp_buffer",
   "ExpBuffer_Config": "exp_buffer.exp_buffer",

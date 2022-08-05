@@ -145,6 +145,24 @@ class TDExpBuffer(ExpBuffer):
         return len(self.data)    
     
     
+
+'''
+Tuple type for Variable TD levels. Can represent both ExpSars and ExpMC
+Stores state-action tuple and discounted rewards over the next n actions,
+as well as the final next state for bootstrapping if not done.
+'''
+@dataclass
+class ExpTD:
+    state: Any
+    action: Any
+    reward: float
+    next_state: Optional[Any] = None
+    
+    def done(self) -> bool:
+        return self.next_state is None    
+    
+    
+    
 # Register for importing
 from config.module_importer import REGISTER_MODULE
 REGISTER_MODULE(__name__)
